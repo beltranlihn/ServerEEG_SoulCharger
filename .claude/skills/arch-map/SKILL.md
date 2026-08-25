@@ -1,11 +1,11 @@
 ---
 name: arch-map
-description: Navegar y mantener el mapa de arquitectura de {{NOMBRE}}. Usar ANTES de buscar en el código para localizar cualquier componente, función, identificador o flujo — y DESPUÉS de cambiar código para mantener el mapa sincronizado. Cubre COMPONENTS.md (inventario), ARCHITECTURE.md (cómo funciona) y docs/adr/ (por qué se decidió).
+description: Navegar y mantener el mapa de arquitectura de Soul Charger. Usar ANTES de buscar en el código para localizar cualquier componente, función, identificador o flujo — y DESPUÉS de cambiar código para mantener el mapa sincronizado. Cubre COMPONENTS.md (inventario), ARCHITECTURE.md (cómo funciona) y docs/adr/ (por qué se decidió).
 user-invocable: true
 argument-hint: "[find <cosa> | update <subsistema> | adr <decisión>]"
 ---
 
-# arch-map — mapa vivo de {{NOMBRE}}
+# arch-map — mapa vivo de Soul Charger
 
 **No re-escanear el código entero para localizar algo.** El mapa ya existe:
 

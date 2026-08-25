@@ -7,6 +7,30 @@ hizo.
 
 ---
 
+## R0 · Orden documental — 2026-08-30 — Fusión de plantillas y relleno del mapa
+
+Primera ronda de `docs/NEXT.md`. **No toca código de la aplicación**; deja la documentación lista para trabajar. Todo verificado contra el análisis de traspaso y el código, no contra documentación previa.
+
+**Qué se hizo.**
+
+1. **Fusión de las plantillas del método** en los ficheros reales de la raíz (conservando el contenido ya verificado): `CLAUDE.md` gana el mapa vivo, `/code-review` al cerrar cada ronda, las convenciones obligatorias (idioma castellano neutro sin voseo, archivar-no-borrar), los comandos, la entrega y la sección de *gotchas*; `README.md` gana la tabla de documentación.
+2. **Relleno del mapa** desde el análisis: `ARCHITECTURE.md` (panorama, diagrama de componentes con el relay como extremo de dos sentidos, modelo de datos, cuatro flujos, conceptos transversales, tabla de riesgos H1–H9, glosario), `COMPONENTS.md` (5 subsistemas con `archivo · función` y estado, lo frágil marcado ⚠️) y `docs/ESTRUCTURA-DEL-CODIGO.md` (orden de lectura y trampas conocidas).
+3. **Utillaje de `.claude/`**: `arch-map/SKILL.md` y `arch-explorer.md` apuntando a los ficheros reales; `commit.md` y `entrega.md` con los comandos reales (`node --check`, `npm run probe`, sin build, instalación local).
+4. **Tres ADR** de las decisiones ya tomadas: `adr-0001` (SDK fuera de git), `adr-0002` (vendor sin CDN), `adr-0003` (arreglo OSC congelado de 18 floats), con su índice.
+5. **Retirada de `docs/plantillas-sin-fusionar/`** una vez consumidas las dos fusiones.
+
+**Medido.**
+
+- Marcadores de plantilla `{{…}}` en los documentos vivos y el utillaje de `.claude/`: **de varias decenas a 0** (`grep -rn "{{"` sobre `CLAUDE.md`, `README.md`, `ARCHITECTURE.md`, `COMPONENTS.md`, `docs/ESTRUCTURA-DEL-CODIGO.md`, `.claude/` → sin resultados).
+- Convención de idioma aplicada: 0 casos de voseo en la documentación nueva.
+- Los nueve hallazgos del análisis quedan referidos desde el mapa (tabla de riesgos de `ARCHITECTURE.md` §6 y columna «Ticket» de `COMPONENTS.md`), no reescritos: una sola fuente.
+
+**Sin verificar.** El Blueprint de Unreal sigue sin inspeccionar (`adr-0003` lo deja anotado como tarea previa a R4); el proyecto vive en `VR_DigitalSanctuary`, otro repositorio.
+
+**Siguiente paso.** R1 (red de sondas), y antes la decisión del director entre camino A y camino B.
+
+---
+
 ## RONDA 0 (preparación) — 2026-08-25 — Limpieza, sistema de trabajo y plan de traspaso
 
 Ronda de preparación para incorporar a otra persona al proyecto. **No se escribió código de la aplicación.**

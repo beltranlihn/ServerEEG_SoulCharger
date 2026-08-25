@@ -13,6 +13,22 @@ Muse 2 ──Web Bluetooth──> Navegador ──WebSocket:3000──> Node.js 
 - **`backend/`**: servidor Node.js que hace de servidor HTTP estático y de relay WebSocket → UDP/OSC hacia Unreal Engine.
 - **`hardware/Source/`**: integración nativa en C++ para Unreal (vía alternativa, no la usa la app web).
 
+## Documentación
+
+| Ruta | Qué es |
+|---|---|
+| **`docs/ESTRUCTURA-DEL-CODIGO.md`** | **Por dónde empezar a leer el código.** Orden de lectura y trampas conocidas. |
+| `CLAUDE.md` | Contrato del proyecto: convenciones, comandos, contrato OSC, algoritmo, gotchas. |
+| `ARCHITECTURE.md` | Cómo funciona: componentes, flujos, conceptos transversales, riesgos y deuda. |
+| `COMPONENTS.md` | Inventario componente a componente, con `archivo · función` y estado. |
+| `PLAN.md` | Bitácora por rondas: cada cambio con su motivo y sus mediciones (lo más nuevo arriba). |
+| `METODO.md` | Las reglas de trabajo. Cada una nació de un fallo concreto. |
+| `docs/adr/` | Decisiones de diseño con su porqué (inmutables). |
+| `docs/NEXT.md` | Cola de trabajo pendiente, de rápido a complejo. |
+| `docs/historial/` | Documentos cerrados: auditorías e investigaciones. Contexto, no referencia. |
+
+Carpetas de trabajo: `scratchpad/` (sondas de verificación, sus volcados no se versionan) · `_backup/deprecated/` (código retirado, con fecha).
+
 ## Guía de Inicio
 
 La forma rápida en Windows es ejecutar **`Iniciar Soul Charger.bat`**: libera los puertos, arranca el relay y abre el panel en Chrome o Edge.

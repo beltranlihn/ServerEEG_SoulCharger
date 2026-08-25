@@ -5,7 +5,7 @@ description: Commit local de los cambios actuales (sin push)
 Haz un commit local de los cambios actuales. **No hagas push.**
 
 1. `git status` y `git diff --stat` para ver qué cambió.
-2. **Comprobación previa:** ejecuta `{{CMD_SINTAXIS}}` y `{{CMD_PRUEBAS}}`. Si algo falla, **para y avisa**; no
+2. **Comprobación previa:** ejecuta `node --check backend/server.js` y `npm run probe`. Si algo falla, **para y avisa**; no
    commitees por encima de una comprobación en rojo.
 3. Actualiza `PLAN.md` con la entrada de la ronda, **lo más nuevo arriba**, incluyendo **qué se midió**.
 4. **Anti-pudrición:** si el cambio añadió, movió, renombró o eliminó un componente, actualiza su fila en
