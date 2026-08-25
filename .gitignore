@@ -28,3 +28,20 @@ sesion_*.json
 .env
 .env.*
 !.env.example
+
+# --- Sondas de verificación (método) ---
+scratchpad/out/
+scratchpad/**/*.png
+scratchpad/**/*.jpg
+scratchpad/**/*.mp4
+scratchpad/**/*.mov
+*.log
+
+# --- Claude Code: versionar el utillaje reutilizable, no el estado local ---
+.claude/*
+!.claude/skills/
+!.claude/agents/
+!.claude/commands/
+!.claude/settings.json
+.claude/settings.local.json
+.claude/*.local.json

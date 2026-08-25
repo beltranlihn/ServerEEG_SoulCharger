@@ -1,5 +1,16 @@
 # CLAUDE.md
 
+> **Si acabas de llegar al proyecto, empieza por `docs/NEXT.md`.** Explica el estado actual, qué leer y en qué
+> orden. El sistema de trabajo está en `METODO.md` y las reglas no son opcionales: **cada ronda cierra con
+> `/code-review`**, y nada se da por bueno sin una sonda que mida la conclusión y sepa fallar.
+>
+> El análisis del que sale el plan está en `docs/historial/2026-08-25-analisis-para-traspaso.md`. Contiene
+> tres hallazgos que conviene conocer antes de tocar la señal: las bandas EEG, el ritmo cardíaco y el
+> promedio del research **no miden hoy lo que su nombre dice**.
+>
+> *(Este bloque es un puntero provisional. La fusión completa del contrato con la plantilla del método es la
+> Ronda 0 de `docs/NEXT.md`.)*
+
 Guía para trabajar en este repositorio. Los datos de aquí están verificados contra el código, no contra documentación previa.
 
 ## Qué es esto
