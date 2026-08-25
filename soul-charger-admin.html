@@ -1,0 +1,1777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soul Charger — Dual Control</title>
+    <style>
+@import url('vendor/fonts/all-fonts.css');
+
+:root {
+    --bg:        #060810;
+    --accent:    #4A7FFF;
+    --accent-lo: rgba(74, 127, 255, 0.10);
+    --accent-md: rgba(74, 127, 255, 0.25);
+    --border:    rgba(74, 127, 255, 0.18);
+    --text-pri:  #E8EEFF;
+    --text-sec:  #4A5A7A;
+    --font-disp: 'Cormorant Garamond', serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+    --red:       #E53E6D;
+    --red-lo:    rgba(229,62,109,0.12);
+    --red-border:rgba(229,62,109,0.25);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.4} }
+@keyframes fadeIn    { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+
+html, body {
+    height: 100vh; overflow: hidden;
+    background: #020617;
+    background-image: radial-gradient(ellipse at 20% 0%, rgba(15,30,80,.6) 0%, transparent 55%);
+    color: var(--text-pri);
+    font-family: var(--font-mono);
+    display: flex; flex-direction: column;
+}
+
+/* ── TOPBAR ── */
+.topbar {
+    height: 44px; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+    background: rgba(2,6,23,.85); backdrop-filter: blur(12px);
+}
+.topbar h1 {
+    font-family: var(--font-disp); font-weight: 300; font-size: 1rem;
+    letter-spacing: .55em; color: var(--text-pri); text-transform: uppercase;
+}
+.topbar-left {
+    position: absolute; left: 1.5rem;
+    display: flex; align-items: center; gap: .5rem;
+    font-size: .58rem; letter-spacing: .1em; color: var(--text-sec); text-transform: uppercase;
+}
+.inp-duration {
+    background: rgba(0,0,0,.35); border: 1px solid var(--border);
+    color: var(--accent); padding: .1rem .4rem; font-family: var(--font-mono);
+    font-size: .62rem; width: 3.5rem; text-align: center;
+}
+.inp-duration:focus { outline: none; border-color: var(--accent); }
+.btn-view-toggle {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-sec); cursor: pointer; padding: .15rem .65rem;
+    font-family: var(--font-mono); font-size: .58rem; letter-spacing: .1em;
+    text-transform: uppercase; transition: all .2s; margin-left: .75rem;
+}
+.btn-view-toggle:hover { border-color: var(--accent); color: var(--accent); }
+.user-counter {
+    position: absolute; right: 1.5rem;
+    display: flex; align-items: center; gap: .45rem;
+    font-size: .58rem; letter-spacing: .12em; color: var(--text-sec); text-transform: uppercase;
+}
+.user-counter-value { color: var(--accent); font-weight: 600; min-width: 1.5rem; text-align: center; }
+.btn-reset-counter {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-sec); cursor: pointer; padding: .1rem .4rem;
+    font-family: var(--font-mono); font-size: .58rem; line-height: 1.4; transition: all .2s;
+}
+.btn-reset-counter:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── MAIN BODY ── */
+.main-body { flex:1; min-height:0; display:flex; flex-direction:column; }
+.panels-container { flex:0 0 42%; display:flex; border-bottom:1px solid var(--border); }
+.admin-panel {
+    flex:1; display:flex; flex-direction:column;
+    padding:1rem 1.5rem; overflow:hidden;
+    border-right:1px solid var(--border);
+}
+.admin-panel:last-child { border-right:none; }
+.charts-row { flex:1; min-height:0; display:flex; flex-direction:column; }
+.chart-col {
+    flex:1; display:flex; flex-direction:column;
+    border-bottom:1px solid var(--border); min-height:0; position:relative;
+}
+.chart-col:last-child { border-bottom:none; }
+
+.panel-title {
+    font-family: var(--font-disp); font-size:1.6rem; font-weight:300;
+    letter-spacing:.3em; color:var(--text-sec); margin-bottom:.35rem; text-transform:uppercase;
+}
+.headset-id {
+    font-size:.58rem; letter-spacing:.14em; color:var(--accent);
+    margin-bottom:.65rem; text-transform:uppercase; min-height:.9rem;
+}
+.btn-connect {
+    width:100%; padding:.6rem 1rem; background:transparent; color:var(--text-pri);
+    font-family:var(--font-disp); font-size:.95rem; font-weight:400; letter-spacing:.35em;
+    border:1px solid var(--border); cursor:pointer; transition:all .35s ease;
+    margin-bottom:.85rem; text-transform:uppercase;
+}
+.btn-connect:hover { background:var(--accent-lo); border-color:var(--accent); box-shadow:0 0 24px var(--accent-md); }
+.btn-disconnect {
+    display:none; width:100%; padding:.4rem 1rem; background:transparent; color:var(--red);
+    font-family:var(--font-mono); font-size:.62rem; letter-spacing:.2em;
+    border:1px solid var(--red-border); cursor:pointer; transition:all .3s ease;
+    margin-bottom:.85rem; text-transform:uppercase;
+}
+.btn-disconnect:hover { background:var(--red-lo); border-color:rgba(229,62,109,.5); }
+.btn-reset-calib {
+    display:none; width:100%; padding:.4rem 1rem; background:transparent; color:var(--accent);
+    font-family:var(--font-mono); font-size:.62rem; letter-spacing:.2em;
+    border:1px solid var(--border); cursor:pointer; transition:all .3s ease;
+    margin-bottom:.85rem; text-transform:uppercase;
+}
+.btn-reset-calib:hover { background:var(--accent-lo); border-color:var(--accent); }
+.btn-reset-calib:disabled { opacity:.45; cursor:not-allowed; }
+.btn-simulate {
+    width:100%; padding:.5rem 1rem; background:transparent; color:var(--accent);
+    font-family:var(--font-mono); font-size:.62rem; letter-spacing:.2em;
+    border:1px dashed var(--border); cursor:pointer; transition:all .3s ease;
+    margin-bottom:.85rem; text-transform:uppercase;
+}
+.btn-simulate:hover { background:var(--accent-lo); border-color:var(--accent); }
+.btn-simulate.sim-active { border-style:solid; border-color:var(--red-border); color:var(--red); }
+.btn-simulate.sim-active:hover { background:var(--red-lo); border-color:rgba(229,62,109,.5); }
+.algo-status {
+    padding:.6rem .85rem; background:var(--accent-lo); border:1px solid var(--border);
+    margin-bottom:.5rem; display:flex; align-items:baseline; gap:1rem;
+}
+.algo-state-label { font-size:.6rem; letter-spacing:.15em; color:var(--text-sec); text-transform:uppercase; white-space:nowrap; flex-shrink:0; }
+.algo-state-value { font-family:var(--font-disp); font-size:1.1rem; font-weight:400; letter-spacing:.08em; color:var(--text-pri); flex:1; }
+.algo-desc { font-size:.6rem; color:var(--text-sec); white-space:nowrap; flex-shrink:0; }
+.progress-track { display:none; width:100%; background:rgba(0,0,0,.4); height:2px; margin-bottom:.5rem; overflow:hidden; }
+.progress-fill { width:0%; height:100%; background:var(--accent); transition:width .2s; }
+.dev-panel {
+    background:rgba(4,6,18,.75); border:1px solid var(--border);
+    padding:.7rem .85rem; margin-bottom:.85rem; flex-shrink:0;
+}
+.dev-header { display:flex; justify-content:space-between; align-items:center; padding-bottom:.45rem; margin-bottom:.5rem; border-bottom:1px solid var(--border); }
+.dev-header h3 { font-size:.62rem; letter-spacing:.15em; color:var(--accent); text-transform:uppercase; font-weight:400; }
+.status-indicator { font-size:.58rem; padding:.12rem .45rem; font-weight:600; letter-spacing:.12em; }
+.status-indicator.offline { background:var(--red-lo); color:var(--red); border:1px solid var(--red-border); }
+.status-indicator.online  { background:var(--accent-lo); color:var(--accent); border:1px solid var(--border); animation:pulse-dot 2s ease-in-out infinite; }
+.info-group { display:flex; justify-content:space-between; align-items:center; margin-bottom:.35rem; font-size:.68rem; }
+.info-group .label { color:var(--text-sec); }
+.info-group .value { color:var(--accent); }
+.dev-input { background:rgba(0,0,0,.35); border:1px solid var(--border); color:var(--accent); padding:.18rem .45rem; font-family:var(--font-mono); width:55%; text-align:right; font-size:.68rem; }
+.dev-input:focus { outline:none; border-color:var(--accent); }
+.btn-dev-action {
+    width:100%; padding:.35rem;
+    background:transparent !important; border:1px dashed var(--border) !important;
+    color:var(--text-sec) !important; margin-top:.5rem; cursor:pointer;
+    font-family:var(--font-mono); font-size:.62rem; letter-spacing:.1em;
+    transition:all .3s !important; text-transform:uppercase;
+}
+.btn-dev-action:hover { background:var(--accent-lo) !important; border-color:var(--accent) !important; color:var(--text-pri) !important; }
+.log-container { margin-top:.5rem; border-top:1px solid var(--border); padding-top:.45rem; }
+.log-label { font-size:.58rem; color:var(--text-sec); letter-spacing:.12em; margin-bottom:.3rem; text-transform:uppercase; }
+.osc-log { height:54px; overflow-y:auto; font-size:.6rem; background:rgba(0,0,0,.25); padding:.35rem; color:var(--accent); line-height:1.5; }
+.chart-label {
+    position:absolute; top:.6rem; left:.75rem; right:.75rem; z-index:2;
+    font-size:.55rem; color:var(--text-sec); letter-spacing:.15em;
+    display:flex; justify-content:space-between; align-items:center;
+    text-transform:uppercase; pointer-events:none;
+}
+.chart-saved { display:none; color:var(--accent); }
+.chart-canvas-wrap { flex:1; min-height:0; width:100%; position:relative; }
+.chart-canvas-wrap canvas { position:absolute; inset:0; width:100% !important; height:100% !important; display:block; }
+.calm-badge {
+    display:none; position:absolute; right:2.2rem; top:50%; transform:translateY(-50%);
+    width:82px; height:82px; border-radius:50%; background:#FFFFFF;
+    flex-direction:column; align-items:center; justify-content:center;
+    z-index:5; pointer-events:none; box-shadow:0 0 32px rgba(255,255,255,.12);
+}
+.calm-badge.visible { display:flex; }
+.calm-badge-value { font-family:var(--font-mono); font-size:1.05rem; font-weight:600; color:#020617; line-height:1; }
+.calm-badge-label { font-family:var(--font-mono); font-size:.42rem; letter-spacing:.1em; color:#4A5A7A; text-transform:uppercase; margin-top:.22rem; }
+
+/* ══════════════════════════════════════════
+   SHARED OVERLAY VIEWS
+══════════════════════════════════════════ */
+.overlay-view {
+    position: fixed; inset: 0; z-index: 200;
+    display: none; flex-direction: column;
+    background: #020617;
+    background-image: radial-gradient(ellipse at 80% 10%, rgba(15,30,80,.5) 0%, transparent 60%);
+}
+.overlay-view.active { display: flex; }
+
+/* ── Research-only mode (separate window) ── */
+body.research-only > .topbar,
+body.research-only > .main-body,
+body.research-only #btn-back-admin,
+body.research-only #btn-to-deep { display: none !important; }
+body.research-only #view-research { position: static; height: 100vh; }
+body.research-only #view-research .view-topbar { justify-content: center; }
+
+.view-topbar {
+    height: 44px; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+    background: rgba(2,6,23,.9); backdrop-filter: blur(12px);
+}
+.view-topbar-title {
+    font-family: var(--font-disp); font-weight: 300; font-size: 1rem;
+    letter-spacing: .55em; color: var(--text-pri); text-transform: uppercase;
+}
+.btn-back {
+    position: absolute; left: 1.5rem;
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-sec); cursor: pointer; padding: .15rem .7rem;
+    font-family: var(--font-mono); font-size: .58rem; letter-spacing: .1em;
+    text-transform: uppercase; transition: all .2s;
+}
+.btn-back:hover { border-color: var(--accent); color: var(--accent); }
+.btn-topbar-right {
+    position: absolute; right: 1.5rem;
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-sec); cursor: pointer; padding: .15rem .7rem;
+    font-family: var(--font-mono); font-size: .58rem; letter-spacing: .1em;
+    text-transform: uppercase; transition: all .2s;
+}
+.btn-topbar-right:hover { border-color: var(--accent); color: var(--accent); }
+.btn-danger-right {
+    position: absolute; right: 1.5rem;
+    background: transparent; border: 1px solid var(--red-border);
+    color: rgba(229,62,109,.55); cursor: pointer; padding: .15rem .7rem;
+    font-family: var(--font-mono); font-size: .58rem; letter-spacing: .1em;
+    text-transform: uppercase; transition: all .2s;
+}
+.btn-danger-right:hover { border-color: rgba(229,62,109,.5); color: var(--red); }
+
+/* ══════════════════════════════════════════
+   RESEARCH VIEW
+══════════════════════════════════════════ */
+.research-body { flex:1; min-height:0; display:flex; flex-direction:column; }
+.research-upper {
+    flex: 0 0 52%; display:flex; align-items:center;
+    padding:1.5rem 2.5rem; gap:3rem;
+    border-bottom:1px solid var(--border); min-height:0;
+}
+.research-avg-area { display:flex; flex-direction:column; align-items:center; gap:.85rem; flex-shrink:0; width:180px; }
+.big-circle {
+    width:155px; height:155px; border-radius:50%; background:#FFFFFF;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    box-shadow:0 0 80px rgba(255,255,255,.07),0 0 30px rgba(255,255,255,.04); flex-shrink:0;
+}
+.big-circle-value { font-family:var(--font-mono); font-size:1.9rem; font-weight:600; color:#020617; line-height:1; }
+.big-circle-label { font-family:var(--font-mono); font-size:.52rem; letter-spacing:.12em; color:#4A5A7A; text-transform:uppercase; margin-top:.3rem; }
+.research-avg-meta { text-align:center; }
+.research-meta-title { font-size:.6rem; letter-spacing:.15em; color:var(--accent); text-transform:uppercase; margin-bottom:.2rem; }
+.research-meta-count { font-size:.75rem; color:var(--text-pri); margin-bottom:.35rem; }
+.research-meta-hint { font-size:.52rem; color:var(--text-sec); line-height:1.7; }
+.research-divider { width:1px; height:70%; background:var(--border); flex-shrink:0; }
+.research-circles-area { flex:1; min-height:0; display:flex; flex-direction:column; gap:.55rem; overflow:hidden; }
+.research-section-label { font-size:.58rem; letter-spacing:.15em; color:var(--text-sec); text-transform:uppercase; flex-shrink:0; }
+.research-circles-grid { display:flex; flex-wrap:wrap; gap:.7rem; overflow-y:auto; align-content:flex-start; padding-right:.25rem; padding-bottom:.25rem; }
+.research-circles-grid::-webkit-scrollbar { width:2px; }
+.research-circles-grid::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+.small-circle-wrap { display:flex; flex-direction:column; align-items:center; gap:.2rem; }
+.small-circle {
+    width:58px; height:58px; border-radius:50%; background:#FFFFFF;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 0 18px rgba(255,255,255,.06); flex-shrink:0;
+}
+.small-circle-value { font-family:var(--font-mono); font-size:.68rem; font-weight:600; color:#020617; }
+.small-circle.stressed { box-shadow:0 0 0 1.5px rgba(229,62,109,.35); }
+.small-circle.stressed .small-circle-value { color:#aa2244; }
+.small-circle-label { font-size:.5rem; color:var(--text-sec); letter-spacing:.08em; }
+.small-circle-name { font-size:.44rem; color:var(--text-sec); letter-spacing:.04em; max-width:62px; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.research-empty { font-size:.65rem; color:var(--text-sec); letter-spacing:.1em; text-transform:uppercase; padding:1.5rem 0; }
+.research-lower { flex:1; min-height:0; display:flex; flex-direction:column; }
+.research-chart-header { display:flex; justify-content:space-between; align-items:baseline; padding:.6rem 1.5rem .3rem; flex-shrink:0; }
+.research-chart-title { font-size:.58rem; letter-spacing:.14em; color:var(--text-sec); text-transform:uppercase; }
+.research-chart-legend { display:flex; align-items:center; gap:1rem; font-size:.5rem; color:var(--text-sec); letter-spacing:.08em; text-transform:uppercase; }
+.legend-dot { display:inline-block; width:18px; height:2px; margin-right:.3rem; vertical-align:middle; border-radius:1px; }
+.research-chart-wrap { flex:1; min-height:0; position:relative; padding:0 1rem .75rem; }
+.research-chart-wrap canvas { position:absolute; inset:0 1rem .75rem; width:calc(100% - 2rem) !important; height:calc(100% - .75rem) !important; }
+
+/* ══════════════════════════════════════════
+   DEEP ANALYSIS VIEW
+══════════════════════════════════════════ */
+.deep-body {
+    flex: 1; min-height: 0;
+    overflow-y: auto; overflow-x: hidden;
+    padding: 1.5rem 2rem 2rem;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-auto-rows: auto;
+    gap: 1rem;
+}
+.deep-body::-webkit-scrollbar { width: 3px; }
+.deep-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* KPI cards row */
+.kpi-row {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+}
+.kpi-card {
+    background: var(--accent-lo);
+    border: 1px solid var(--border);
+    padding: 1rem 1.2rem;
+    display: flex; flex-direction: column; gap: .35rem;
+    animation: fadeIn .4s ease both;
+}
+.kpi-label { font-size: .52rem; letter-spacing: .18em; color: var(--text-sec); text-transform: uppercase; }
+.kpi-value { font-family: var(--font-disp); font-size: 2.4rem; font-weight: 300; color: var(--text-pri); line-height: 1; }
+.kpi-sub   { font-size: .52rem; color: var(--text-sec); }
+
+/* Chart cards */
+.chart-card {
+    background: rgba(4,6,18,.6);
+    border: 1px solid var(--border);
+    padding: .85rem 1rem;
+    display: flex; flex-direction: column; gap: .5rem;
+    animation: fadeIn .4s ease both;
+}
+.chart-card.span-2 { grid-column: span 2; }
+.chart-card.span-3 { grid-column: span 3; }
+.chart-card.span-4 { grid-column: span 4; }
+.chart-card.span-1 { grid-column: span 1; }
+
+.card-title {
+    font-size: .58rem; letter-spacing: .18em;
+    color: var(--accent); text-transform: uppercase;
+}
+.card-desc {
+    font-size: .52rem; color: var(--text-sec); line-height: 1.6;
+}
+.card-canvas-wrap {
+    flex: 1; position: relative; min-height: 0;
+}
+.card-canvas-wrap canvas {
+    width: 100% !important;
+    display: block;
+}
+
+/* Individual results bars */
+.results-list {
+    display: flex; flex-direction: column; gap: .4rem;
+    overflow-y: auto; max-height: 220px;
+}
+.results-list::-webkit-scrollbar { width: 2px; }
+.results-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.result-row { display: flex; align-items: center; gap: .65rem; }
+.result-label { font-size: .55rem; color: var(--text-sec); min-width: 60px; flex-shrink: 0; }
+.result-bar-track { flex: 1; height: 6px; background: rgba(0,0,0,.4); border-radius: 3px; overflow: hidden; }
+.result-bar-fill  { height: 100%; border-radius: 3px; transition: width .4s ease; }
+.result-value { font-size: .55rem; min-width: 36px; text-align: right; flex-shrink: 0; }
+
+.deep-empty {
+    grid-column: 1 / -1;
+    text-align: center; padding: 4rem;
+    font-size: .75rem; color: var(--text-sec); letter-spacing: .15em; text-transform: uppercase;
+    line-height: 2.5;
+}
+
+/* ══════════════════════════════════════════
+   THEME TOGGLE BUTTON
+══════════════════════════════════════════ */
+.btn-theme-toggle {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-sec); cursor: pointer; padding: .1rem .45rem;
+    font-family: var(--font-mono); font-size: .72rem; line-height: 1.2;
+    transition: all .2s; margin-right: .5rem;
+}
+.btn-theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ══════════════════════════════════════════
+   LIGHT MODE — macOS pastel
+══════════════════════════════════════════ */
+body.light-mode {
+    --accent:    #6B8AFE;
+    --accent-lo: rgba(107,138,254,.10);
+    --accent-md: rgba(107,138,254,.22);
+    --border:    rgba(60,60,67,.14);
+    --text-pri:  #1D1D1F;
+    --text-sec:  #6E6E73;
+    --red:       #FF6B8A;
+    --red-lo:    rgba(255,107,138,.10);
+    --red-border:rgba(255,107,138,.28);
+
+    background: #F4F4F7;
+    background-image: radial-gradient(ellipse at 20% 0%, rgba(186,206,255,.55) 0%, transparent 55%),
+                      radial-gradient(ellipse at 100% 100%, rgba(255,210,225,.4) 0%, transparent 50%);
+}
+body.light-mode .topbar       { background: rgba(255,255,255,.78); }
+body.light-mode .view-topbar  { background: rgba(255,255,255,.85); }
+body.light-mode .overlay-view {
+    background: #F4F4F7;
+    background-image: radial-gradient(ellipse at 80% 10%, rgba(255,210,225,.5) 0%, transparent 60%),
+                      radial-gradient(ellipse at 10% 90%, rgba(190,225,255,.5) 0%, transparent 55%);
+}
+body.light-mode .inp-duration,
+body.light-mode .dev-input      { background: rgba(0,0,0,.04); }
+body.light-mode .osc-log        { background: rgba(0,0,0,.03); }
+body.light-mode .progress-track,
+body.light-mode .result-bar-track { background: rgba(0,0,0,.08); }
+body.light-mode .dev-panel      { background: rgba(255,255,255,.72); backdrop-filter: blur(10px); }
+body.light-mode .chart-card     { background: rgba(255,255,255,.72); backdrop-filter: blur(8px); }
+body.light-mode .calm-badge,
+body.light-mode .big-circle,
+body.light-mode .small-circle   { background: #FFFFFF; box-shadow: 0 4px 16px rgba(0,0,0,.06), 0 1px 3px rgba(0,0,0,.04); }
+body.light-mode .calm-badge-value,
+body.light-mode .big-circle-value,
+body.light-mode .small-circle-value { color: #1D1D1F; }
+body.light-mode .calm-badge-label,
+body.light-mode .big-circle-label,
+body.light-mode .small-circle-label { color: #6E6E73; }
+body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30); }
+    </style>
+    <script src="vendor/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ══ ADMIN TOPBAR ══ -->
+<div class="topbar">
+    <div class="topbar-left">
+        <span>Duration</span>
+        <input type="number" id="inp-duration" class="inp-duration" value="10" min="1" max="600" title="Measurement duration in seconds">
+        <span>sec</span>
+        <button id="btn-view-research" class="btn-view-toggle">Research →</button>
+    </div>
+    <h1>Soul Charger &nbsp;·&nbsp; Dual Control</h1>
+    <div class="user-counter">
+        <button class="btn-theme-toggle" id="btn-theme-toggle" title="Toggle light / dark mode">☾</button>
+        <span>Users</span>
+        <span class="user-counter-value" id="user-counter-value">0</span>
+        <button class="btn-reset-counter" id="btn-reset-counter" title="Reset counter">↺</button>
+    </div>
+</div>
+
+<!-- ══ ADMIN MAIN BODY ══ -->
+<div class="main-body">
+    <div class="panels-container">
+        <!-- PLAYER 1 -->
+        <div class="admin-panel" id="panel-1">
+            <div class="panel-title">Player 1</div>
+            <div class="headset-id" id="headset-id-1">—</div>
+            <button id="btn-connect-muse-1" class="btn-connect">Connect Muse P1</button>
+            <button id="btn-simulate-1" class="btn-simulate">◈ Simulate P1</button>
+            <button id="btn-disconnect-muse-1" class="btn-disconnect">Disconnect P1</button>
+            <button id="btn-reset-calib-1" class="btn-reset-calib" title="Restart calibration and pulse BT 0→1 to reset Unreal">↺ Reset Calibration P1</button>
+            <div class="algo-status">
+                <span class="algo-state-label">State</span>
+                <span class="algo-state-value" id="indicator-state-1">DISCONNECTED</span>
+                <span class="algo-desc" id="indicator-desc-1">Connect headset</span>
+            </div>
+            <div class="progress-track" id="progress-bar-container-1">
+                <div class="progress-fill" id="progress-bar-1"></div>
+            </div>
+            <div class="dev-panel">
+                <div class="dev-header">
+                    <h3>OSC Target — Quest 1</h3>
+                    <span id="osc-status-1" class="status-indicator offline">OFFLINE</span>
+                </div>
+                <div class="dev-body">
+                    <div class="info-group"><span class="label">Relay WS</span><span class="value">ws://localhost:3000</span></div>
+                    <div class="info-group"><span class="label">Target IP</span><input type="text" id="inp-osc-ip-1" class="dev-input" value="127.0.0.1"></div>
+                    <div class="info-group"><span class="label">Target Port</span><input type="number" id="inp-osc-port-1" class="dev-input" value="8000"></div>
+                    <button id="btn-update-conn-1" class="btn-dev-action">Verify / Update P1</button>
+                    <div class="log-container">
+                        <div class="log-label">Diagnostic P1</div>
+                        <div id="osc-log-1" class="osc-log"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PLAYER 2 -->
+        <div class="admin-panel" id="panel-2">
+            <div class="panel-title">Player 2</div>
+            <div class="headset-id" id="headset-id-2">—</div>
+            <button id="btn-connect-muse-2" class="btn-connect">Connect Muse P2</button>
+            <button id="btn-simulate-2" class="btn-simulate">◈ Simulate P2</button>
+            <button id="btn-disconnect-muse-2" class="btn-disconnect">Disconnect P2</button>
+            <button id="btn-reset-calib-2" class="btn-reset-calib" title="Restart calibration and pulse BT 0→1 to reset Unreal">↺ Reset Calibration P2</button>
+            <div class="algo-status">
+                <span class="algo-state-label">State</span>
+                <span class="algo-state-value" id="indicator-state-2">DISCONNECTED</span>
+                <span class="algo-desc" id="indicator-desc-2">Connect headset</span>
+            </div>
+            <div class="progress-track" id="progress-bar-container-2">
+                <div class="progress-fill" id="progress-bar-2"></div>
+            </div>
+            <div class="dev-panel">
+                <div class="dev-header">
+                    <h3>OSC Target — Quest 2</h3>
+                    <span id="osc-status-2" class="status-indicator offline">OFFLINE</span>
+                </div>
+                <div class="dev-body">
+                    <div class="info-group"><span class="label">Relay WS</span><span class="value">ws://localhost:3000</span></div>
+                    <div class="info-group"><span class="label">Target IP</span><input type="text" id="inp-osc-ip-2" class="dev-input" value="192.168.1.50"></div>
+                    <div class="info-group"><span class="label">Target Port</span><input type="number" id="inp-osc-port-2" class="dev-input" value="8000"></div>
+                    <button id="btn-update-conn-2" class="btn-dev-action">Verify / Update P2</button>
+                    <div class="log-container">
+                        <div class="log-label">Diagnostic P2</div>
+                        <div id="osc-log-2" class="osc-log"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHARTS stacked vertically -->
+    <div class="charts-row">
+        <div class="chart-col" id="chart-box-1">
+            <div class="chart-label">
+                <span>Stress Index — Session P1</span>
+                <span class="chart-saved" id="chart-saved-1">✓ Saved</span>
+            </div>
+            <div class="chart-canvas-wrap"><canvas id="chart-1"></canvas></div>
+            <div class="calm-badge" id="calm-badge-1">
+                <span class="calm-badge-value" id="calm-badge-value-1">—</span>
+                <span class="calm-badge-label" id="calm-badge-label-1">—</span>
+            </div>
+        </div>
+        <div class="chart-col" id="chart-box-2">
+            <div class="chart-label">
+                <span>Stress Index — Session P2</span>
+                <span class="chart-saved" id="chart-saved-2">✓ Saved</span>
+            </div>
+            <div class="chart-canvas-wrap"><canvas id="chart-2"></canvas></div>
+            <div class="calm-badge" id="calm-badge-2">
+                <span class="calm-badge-value" id="calm-badge-value-2">—</span>
+                <span class="calm-badge-label" id="calm-badge-label-2">—</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     RESEARCH VIEW
+══════════════════════════════════════════ -->
+<div id="view-research" class="overlay-view">
+    <div class="view-topbar">
+        <button id="btn-back-admin" class="btn-back">← Admin</button>
+        <span class="view-topbar-title">Soul Charger &nbsp;·&nbsp; Research</span>
+        <button id="btn-to-deep" class="btn-topbar-right" style="right:12rem">Deep Analysis →</button>
+        <button id="btn-reseed-demo" class="btn-topbar-right" style="right:22rem">Reseed 75 demo</button>
+        <button id="btn-clear-sessions" class="btn-danger-right">Clear sessions</button>
+    </div>
+
+    <div class="research-body">
+        <div class="research-upper">
+            <div class="research-avg-area">
+                <div class="big-circle" id="research-big-circle">
+                    <span class="big-circle-value" id="research-avg-value">—</span>
+                    <span class="big-circle-label" id="research-avg-label"></span>
+                </div>
+                <div class="research-avg-meta">
+                    <div class="research-meta-title">Average Index</div>
+                    <div class="research-meta-count" id="research-participants">0 participants</div>
+                    <div class="research-meta-hint">Start → end trend<br>per session<br><span style="color:var(--accent)">+%</span> calmed &nbsp;·&nbsp; <span style="color:var(--red)">−%</span> stressed</div>
+                </div>
+            </div>
+            <div class="research-divider"></div>
+            <div class="research-circles-area">
+                <div class="research-section-label">Individual sessions — each circle is one participant</div>
+                <div id="research-circles-grid" class="research-circles-grid">
+                    <div class="research-empty">No sessions recorded yet</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="research-lower">
+            <div class="research-chart-header">
+                <span class="research-chart-title">Session comparison — Stress index (normalized duration 0 → 100%)</span>
+                <div class="research-chart-legend">
+                    <span><span class="legend-dot" style="background:rgba(74,127,255,.3);height:1px"></span>Individual session</span>
+                    <span><span class="legend-dot" style="background:rgba(74,127,255,.9)"></span>Group average</span>
+                </div>
+            </div>
+            <div class="research-chart-wrap">
+                <canvas id="research-chart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     DEEP ANALYSIS VIEW
+══════════════════════════════════════════ -->
+<div id="view-deep" class="overlay-view">
+    <div class="view-topbar">
+        <button id="btn-back-research" class="btn-back">← Research</button>
+        <span class="view-topbar-title">Soul Charger &nbsp;·&nbsp; Deep Analysis</span>
+    </div>
+    <div class="deep-body" id="deep-body"></div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════ -->
+<script type="module">
+    import { MuseClient } from './vendor/muse-js.bundle.js';
+
+    let globalDurationMs = 10000;
+    let researchChart = null;
+    let deepCharts = [];
+
+    // ── Storage helpers ──
+    function getUserCount()    { return parseInt(localStorage.getItem('soulcharger_users') || '0'); }
+    function incrementUserCount() {
+        const n = getUserCount() + 1;
+        localStorage.setItem('soulcharger_users', n);
+        const el = document.getElementById('user-counter-value');
+        if (el) el.innerText = n;
+    }
+    function getSessions()          { return JSON.parse(localStorage.getItem('soulcharger_sessions') || '[]'); }
+    function saveSessions(arr)      { localStorage.setItem('soulcharger_sessions', JSON.stringify(arr)); }
+
+    // ── Demo data seeder: 75 synthetic sessions whose calmDelta averages exactly +7% ──
+    function seedDemoData() {
+        const N_SESSIONS = 75;
+        const TARGET_AVG = 7;
+        const N = 100;
+
+        function mulberry32(seed) {
+            return function() {
+                seed = (seed + 0x6D2B79F5) | 0;
+                let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+                t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
+        }
+        const rand = mulberry32(20260512);
+
+        const deltas = [];
+        for (let i = 0; i < N_SESSIONS; i++) {
+            const r = rand();
+            let d;
+            if (r < 0.18)      d = -Math.round(rand() * 10 + 2);   // 18% stressed   −2…−12
+            else if (r < 0.30) d =  Math.round(rand() * 3);        // 12% near zero   0…+3
+            else               d =  Math.round(rand() * 14 + 3);   // 70% calmed    +3…+17
+            deltas.push(d);
+        }
+        // Force exact sum so the displayed integer average is +4%
+        let diff = (N_SESSIONS * TARGET_AVG) - deltas.reduce((a, b) => a + b, 0);
+        let p = 0;
+        while (diff !== 0) {
+            if (diff > 0) { deltas[p] += 1; diff -= 1; }
+            else          { deltas[p] -= 1; diff += 1; }
+            p = (p + 1) % N_SESSIONS;
+        }
+
+        const sessions = deltas.map((delta, i) => {
+            const entryBase = 0.55 + (rand() - 0.5) * 0.08;
+            const exitBase  = Math.max(0.05, Math.min(0.95, entryBase - delta / 100));
+            const wavePhase = rand() * Math.PI * 2;
+            const waveFreq  = 1.5 + rand() * 2.5;
+            const waveAmp   = 0.035 + rand() * 0.03;
+            const noiseAmp  = 0.05  + rand() * 0.04;
+            const stressValues = [];
+            for (let j = 0; j < N; j++) {
+                const t = j / (N - 1);
+                const eased    = 0.5 - 0.5 * Math.cos(t * Math.PI);
+                const baseline = entryBase + (exitBase - entryBase) * eased;
+                const wave     = Math.sin(wavePhase + t * Math.PI * waveFreq) * waveAmp;
+                const noise    = (rand() - 0.5) * noiseAmp;
+                stressValues.push(Math.max(0.02, Math.min(0.98, baseline + wave + noise)));
+            }
+            return {
+                calmDelta: delta,
+                stressValues,
+                panelId: i % 2 === 0 ? 1 : 2,
+                headsetName: `Muse_${String(i + 1).padStart(3, '0')}`,
+                timestamp: Date.now() - (N_SESSIONS - i) * 60000
+            };
+        });
+
+        saveSessions(sessions);
+        localStorage.setItem('soulcharger_users', String(N_SESSIONS));
+    }
+
+    function normalizeToN(arr, n = 100) {
+        if (!arr || arr.length === 0) return Array(n).fill(0.5);
+        if (arr.length === 1) return Array(n).fill(arr[0]);
+        const out = [];
+        for (let i = 0; i < n; i++) {
+            const t = i / (n - 1);
+            const idx = t * (arr.length - 1);
+            const lo = Math.floor(idx);
+            const hi = Math.min(Math.ceil(idx), arr.length - 1);
+            out.push(arr[lo] + (arr[hi] - arr[lo]) * (idx - lo));
+        }
+        return out;
+    }
+
+    // ── Research view ──
+    function renderResearchView() {
+        const sessions = getSessions();
+        const avgValEl = document.getElementById('research-avg-value');
+        const avgLblEl = document.getElementById('research-avg-label');
+        const countEl  = document.getElementById('research-participants');
+        const grid     = document.getElementById('research-circles-grid');
+
+        if (sessions.length === 0) {
+            avgValEl.innerText = '—'; avgLblEl.innerText = '';
+            countEl.innerText  = '0 participants';
+            grid.innerHTML = '<div class="research-empty">No sessions recorded yet.<br>Connect a Muse headset and complete a session.</div>';
+        } else {
+            const avg = Math.round(sessions.reduce((a, b) => a + b.calmDelta, 0) / sessions.length);
+            avgValEl.innerText = `${avg >= 0 ? '+' : ''}${avg}%`;
+            avgLblEl.innerText = avg >= 0 ? 'CALM' : 'STRESS';
+            countEl.innerText  = `${sessions.length} participant${sessions.length !== 1 ? 's' : ''}`;
+            grid.innerHTML = '';
+            sessions.forEach((s, i) => {
+                const stressed = s.calmDelta < 0;
+                const sign = s.calmDelta >= 0 ? '+' : '';
+                const wrap = document.createElement('div');
+                wrap.className = 'small-circle-wrap';
+                wrap.innerHTML = `
+                    <div class="small-circle${stressed ? ' stressed' : ''}">
+                        <span class="small-circle-value">${sign}${s.calmDelta}%</span>
+                    </div>
+                    <div class="small-circle-label">#${i + 1}</div>
+                    <div class="small-circle-name">${s.headsetName || `P${s.panelId}`}</div>
+                `;
+                grid.appendChild(wrap);
+            });
+        }
+
+        if (researchChart) { researchChart.destroy(); researchChart = null; }
+        if (sessions.length === 0) return;
+
+        const N = 100;
+        const labels = Array.from({length: N}, (_, i) =>
+            i === 0 ? '0%' : i === N-1 ? '100%' : i % 25 === 0 ? `${i}%` : ''
+        );
+        const datasets = sessions.map((s, i) => ({
+            label: `#${i+1}`, data: s.stressValues,
+            borderColor: 'rgba(74,127,255,.22)', backgroundColor: 'transparent',
+            borderWidth: 1, pointRadius: 0, tension: .35, fill: false, order: 1
+        }));
+
+        if (sessions.length > 1) {
+            const avgLine = Array.from({length: N}, (_, i) =>
+                sessions.reduce((sum, s) => sum + s.stressValues[i], 0) / sessions.length
+            );
+            datasets.push({
+                label: 'Average', data: avgLine,
+                borderColor: 'rgba(74,127,255,.9)', backgroundColor: 'rgba(74,127,255,.06)',
+                borderWidth: 2.5, pointRadius: 0, tension: .4, fill: true, order: 0
+            });
+        } else {
+            datasets[0].borderColor = 'rgba(74,127,255,.85)';
+            datasets[0].backgroundColor = 'rgba(74,127,255,.06)';
+            datasets[0].fill = true; datasets[0].borderWidth = 2;
+        }
+
+        researchChart = new Chart(document.getElementById('research-chart'), {
+            type: 'line',
+            data: { labels, datasets },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: false,
+                scales: {
+                    x: { ticks: { color:'#4A5A7A', font:{family:"'IBM Plex Mono'",size:8}, maxTicksLimit:6 }, grid:{color:'rgba(74,127,255,.05)'} },
+                    y: { min:0, max:1, ticks:{ color:'#4A5A7A', font:{family:"'IBM Plex Mono'",size:8}, stepSize:.5,
+                        callback: v => v===0?'Calm':v===1?'Stress':'0.5' }, grid:{color:'rgba(74,127,255,.05)'} }
+                },
+                plugins: { legend:{display:false}, tooltip:{ mode:'index', intersect:false,
+                    callbacks:{ label: ctx => `${ctx.dataset.label}: ${(ctx.raw*100).toFixed(0)}%` }
+                }}
+            }
+        });
+    }
+
+    // ── Deep Analysis view ──
+    function destroyDeepCharts() {
+        deepCharts.forEach(c => { try { c.destroy(); } catch(e){} });
+        deepCharts = [];
+    }
+
+    function renderDeepAnalysis() {
+        destroyDeepCharts();
+        const body = document.getElementById('deep-body');
+        body.innerHTML = '';
+
+        const sessions = getSessions();
+        if (sessions.length === 0) {
+            body.innerHTML = '<div class="deep-empty">No session data available.<br>Complete at least one session to unlock deep analysis.</div>';
+            return;
+        }
+
+        const N = 100;
+        const deltas = sessions.map(s => s.calmDelta);
+        const calmedN = deltas.filter(d => d > 0).length;
+        const stressedN = sessions.length - calmedN;
+        const avgDelta = deltas.reduce((a,b) => a+b, 0) / deltas.length;
+        const effectivePct = Math.round((calmedN / sessions.length) * 100);
+        const peakResponse = Math.max(...deltas);
+
+        // Mean stress curve
+        const meanCurve = Array.from({length: N}, (_, i) =>
+            sessions.reduce((sum, s) => sum + s.stressValues[i], 0) / sessions.length
+        );
+        // SD curve
+        const sdCurve = Array.from({length: N}, (_, i) => {
+            const mean = meanCurve[i];
+            return Math.sqrt(sessions.reduce((sum, s) => sum + Math.pow(s.stressValues[i] - mean, 2), 0) / sessions.length);
+        });
+        // Entry vs Exit
+        const entryExit = sessions.map(s => ({
+            x: s.stressValues.slice(0,25).reduce((a,b)=>a+b,0)/25,
+            y: s.stressValues.slice(75).reduce((a,b)=>a+b,0)/25
+        }));
+        // Phase averages (4 quarters of the session)
+        const phaseAvg = [0,1,2,3].map(q => {
+            const slice = sessions.map(s =>
+                s.stressValues.slice(q*25, (q+1)*25).reduce((a,b)=>a+b,0)/25
+            );
+            return slice.reduce((a,b)=>a+b,0)/slice.length;
+        });
+        // P1 vs P2 avg
+        const p1sessions = sessions.filter(s => s.panelId === 1 || s.panelId === '1');
+        const p2sessions = sessions.filter(s => s.panelId === 2 || s.panelId === '2');
+
+        const monoFont = "'IBM Plex Mono', monospace";
+        const tickStyle = { color: '#4A5A7A', font: { family: monoFont, size: 8 } };
+        const gridStyle = { color: 'rgba(74,127,255,.06)' };
+
+        // ── KPI row ──
+        const kpiRow = el('div', 'kpi-row');
+        [
+            ['Effectiveness', `${effectivePct}%`, `${calmedN} of ${sessions.length} participants calmed`],
+            ['Avg Calm Delta', `${avgDelta >= 0 ? '+' : ''}${avgDelta.toFixed(1)}%`, 'Mean start→end trend across all sessions'],
+            ['Sessions', `${sessions.length}`, `P1: ${p1sessions.length} · P2: ${p2sessions.length}`],
+            ['Peak Response', `+${peakResponse}%`, 'Highest individual calm improvement']
+        ].forEach(([label, value, sub]) => {
+            const card = el('div', 'kpi-card');
+            card.innerHTML = `<div class="kpi-label">${label}</div><div class="kpi-value">${value}</div><div class="kpi-sub">${sub}</div>`;
+            kpiRow.appendChild(card);
+        });
+        body.appendChild(kpiRow);
+
+        // ── Donut: Calming Response Rate ──
+        const donutCard = makeChartCard('Calming Response Rate',
+            'Proportion of participants who ended the experience calmer than they started.',
+            'span-1', 180);
+        body.appendChild(donutCard.card);
+        const donutCtx = donutCard.canvas;
+        deepCharts.push(new Chart(donutCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Calmed', 'Stressed'],
+                datasets: [{ data: [calmedN, stressedN],
+                    backgroundColor: ['rgba(74,127,255,.75)', 'rgba(229,62,109,.45)'],
+                    borderColor: ['rgba(74,127,255,.3)', 'rgba(229,62,109,.25)'],
+                    borderWidth: 1, hoverOffset: 4 }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, cutout: '68%',
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: '#4A5A7A', font: { family: monoFont, size: 8 }, boxWidth: 10, padding: 8 } },
+                    tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.raw} (${Math.round(ctx.raw/sessions.length*100)}%)` } }
+                }
+            }
+        }));
+
+        // ── Line + confidence band: Mean stress curve ──
+        const bandCard = makeChartCard('Average Stress Curve ± 1 SD',
+            'Group mean stress trajectory across a normalized session (0%–100%). Shaded band shows ±1 standard deviation — a wider band means more variability between participants.',
+            'span-3', 180);
+        body.appendChild(bandCard.card);
+        const bandLabels = Array.from({length: N}, (_,i) => i%25===0?`${i}%`:'');
+        const upperBand = meanCurve.map((v,i) => Math.min(1, v + sdCurve[i]));
+        const lowerBand = meanCurve.map((v,i) => Math.max(0, v - sdCurve[i]));
+        deepCharts.push(new Chart(bandCard.canvas, {
+            type: 'line',
+            data: {
+                labels: bandLabels,
+                datasets: [
+                    { label: 'Upper SD', data: upperBand, borderColor: 'transparent', backgroundColor: 'rgba(74,127,255,.12)', fill: '+1', pointRadius: 0, tension: .4 },
+                    { label: 'Mean', data: meanCurve, borderColor: 'rgba(74,127,255,.9)', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: .4, fill: false },
+                    { label: 'Lower SD', data: lowerBand, borderColor: 'transparent', backgroundColor: 'transparent', fill: false, pointRadius: 0, tension: .4 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: false,
+                scales: {
+                    x: { ticks: { ...tickStyle, maxTicksLimit: 6 }, grid: gridStyle },
+                    y: { min:0, max:1, ticks: { ...tickStyle, stepSize:.5, callback: v => v===0?'Calm':v===1?'Stress':'' }, grid: gridStyle }
+                },
+                plugins: { legend: { display: false } }
+            }
+        }));
+
+        // ── Delta Distribution histogram ──
+        const histCard = makeChartCard('Delta Distribution',
+            'How much participants changed during the experience. Bars toward the right indicate calming; bars toward the left indicate increased stress.',
+            'span-2', 200);
+        body.appendChild(histCard.card);
+        const binSize = 5;
+        const minD = Math.min(...deltas), maxD = Math.max(...deltas);
+        const binStart = Math.floor(minD / binSize) * binSize;
+        const binEnd   = Math.ceil(maxD  / binSize) * binSize;
+        const bins = []; const binLabels = [];
+        for (let b = binStart; b < binEnd; b += binSize) {
+            binLabels.push(`${b>=0?'+':''}${b}%`);
+            bins.push(deltas.filter(d => d >= b && d < b + binSize).length);
+        }
+        deepCharts.push(new Chart(histCard.canvas, {
+            type: 'bar',
+            data: {
+                labels: binLabels,
+                datasets: [{ label: 'Sessions', data: bins,
+                    backgroundColor: bins.map((_, i) => {
+                        const val = binStart + i * binSize;
+                        return val >= 0 ? 'rgba(74,127,255,.6)' : 'rgba(229,62,109,.5)';
+                    }),
+                    borderColor: 'transparent', borderRadius: 2 }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: false,
+                scales: {
+                    x: { ticks: { ...tickStyle }, grid: { display: false } },
+                    y: { ticks: { ...tickStyle, stepSize: 1 }, grid: gridStyle, beginAtZero: true }
+                },
+                plugins: { legend: { display: false } }
+            }
+        }));
+
+        // ── Entry vs Exit scatter ──
+        const scatterCard = makeChartCard('Entry vs Exit Stress',
+            'Each point is one participant. X = average stress in the first 25% of the session; Y = average stress in the last 25%. Points below the diagonal line mean the person became calmer. Points above the diagonal mean increased stress.',
+            'span-2', 200);
+        body.appendChild(scatterCard.card);
+        deepCharts.push(new Chart(scatterCard.canvas, {
+            type: 'scatter',
+            data: {
+                datasets: [{
+                    label: 'Participant',
+                    data: entryExit,
+                    backgroundColor: entryExit.map(p => p.y < p.x ? 'rgba(74,127,255,.7)' : 'rgba(229,62,109,.6)'),
+                    pointRadius: 5, pointHoverRadius: 7
+                }, {
+                    label: 'Diagonal (no change)',
+                    data: [{x:0,y:0},{x:1,y:1}],
+                    type: 'line',
+                    borderColor: 'rgba(255,255,255,.12)', borderDash: [4,4],
+                    borderWidth: 1, pointRadius: 0, fill: false
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: false,
+                scales: {
+                    x: { min:0, max:1, title: { display:true, text:'Entry stress', color:'#4A5A7A', font:{family:monoFont,size:8} }, ticks:{...tickStyle, callback:v=>`${Math.round(v*100)}%`}, grid:gridStyle },
+                    y: { min:0, max:1, title: { display:true, text:'Exit stress', color:'#4A5A7A', font:{family:monoFont,size:8} }, ticks:{...tickStyle, callback:v=>`${Math.round(v*100)}%`}, grid:gridStyle }
+                },
+                plugins: { legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ctx.datasetIndex===0 ? `Entry ${(ctx.parsed.x*100).toFixed(0)}% → Exit ${(ctx.parsed.y*100).toFixed(0)}%` : null } } }
+            }
+        }));
+
+        // ── Phase radar ──
+        const radarCard = makeChartCard('Session Phase Profile',
+            'Average stress level across the four quarters of the experience (Q1=0–25%, Q2=25–50%, Q3=50–75%, Q4=75–100%). A healthy meditation arc shows decreasing values from Q1 to Q4.',
+            'span-2', 200);
+        body.appendChild(radarCard.card);
+        deepCharts.push(new Chart(radarCard.canvas, {
+            type: 'radar',
+            data: {
+                labels: ['Q1 (0–25%)', 'Q2 (25–50%)', 'Q3 (50–75%)', 'Q4 (75–100%)'],
+                datasets: [{
+                    label: 'Avg Stress', data: phaseAvg,
+                    borderColor: 'rgba(74,127,255,.8)', backgroundColor: 'rgba(74,127,255,.12)',
+                    borderWidth: 1.5, pointRadius: 3, pointBackgroundColor: 'rgba(74,127,255,.8)'
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: false,
+                scales: { r: {
+                    min:0, max:1, ticks: { display:false, stepSize:.25 },
+                    grid: { color:'rgba(74,127,255,.1)' },
+                    pointLabels: { color:'#4A5A7A', font:{family:monoFont,size:8} },
+                    angleLines: { color:'rgba(74,127,255,.08)' }
+                }},
+                plugins: { legend:{display:false} }
+            }
+        }));
+
+        // ── P1 vs P2 comparison ──
+        const compCard = makeChartCard('Player 1 vs Player 2',
+            'Comparison of mean stress trajectories for each headset position. Reveals whether one physical position (P1 vs P2) consistently produces different responses — useful for detecting environmental or setup biases.',
+            'span-2', 200);
+        body.appendChild(compCard.card);
+        const compDatasets = [];
+        if (p1sessions.length > 0) {
+            const p1mean = Array.from({length:N}, (_,i) => p1sessions.reduce((sum,s)=>sum+s.stressValues[i],0)/p1sessions.length);
+            compDatasets.push({ label:`P1 (n=${p1sessions.length})`, data:p1mean, borderColor:'rgba(74,127,255,.85)', backgroundColor:'rgba(74,127,255,.06)', borderWidth:2, pointRadius:0, tension:.4, fill:true });
+        }
+        if (p2sessions.length > 0) {
+            const p2mean = Array.from({length:N}, (_,i) => p2sessions.reduce((sum,s)=>sum+s.stressValues[i],0)/p2sessions.length);
+            compDatasets.push({ label:`P2 (n=${p2sessions.length})`, data:p2mean, borderColor:'rgba(229,62,109,.75)', backgroundColor:'rgba(229,62,109,.05)', borderWidth:2, pointRadius:0, tension:.4, fill:true });
+        }
+        deepCharts.push(new Chart(compCard.canvas, {
+            type: 'line',
+            data: { labels: bandLabels, datasets: compDatasets },
+            options: {
+                responsive:true, maintainAspectRatio:false, animation:false,
+                scales: {
+                    x: { ticks:{...tickStyle,maxTicksLimit:6}, grid:gridStyle },
+                    y: { min:0,max:1, ticks:{...tickStyle,stepSize:.5,callback:v=>v===0?'Calm':v===1?'Stress':''}, grid:gridStyle }
+                },
+                plugins: { legend:{ labels:{ color:'#4A5A7A', font:{family:monoFont,size:8}, boxWidth:12, padding:8 } } }
+            }
+        }));
+
+        // ── Temporal progression (delta by session #) ──
+        const tempCard = makeChartCard('Temporal Progression',
+            'Calm delta (+calmer / −stressed) ordered chronologically. Reveals whether the installation effect improves or diminishes over the course of the event — useful for detecting adaptation or fatigue.',
+            'span-2', 200);
+        body.appendChild(tempCard.card);
+        deepCharts.push(new Chart(tempCard.canvas, {
+            type: 'bar',
+            data: {
+                labels: sessions.map((_,i)=>`#${i+1}`),
+                datasets: [{ label:'Delta', data: deltas,
+                    backgroundColor: deltas.map(d => d>=0?'rgba(74,127,255,.55)':'rgba(229,62,109,.5)'),
+                    borderColor: 'transparent', borderRadius: 2 }]
+            },
+            options: {
+                responsive:true, maintainAspectRatio:false, animation:false,
+                scales: {
+                    x: { ticks:{...tickStyle,maxRotation:0,maxTicksLimit:20}, grid:{display:false} },
+                    y: { ticks:{...tickStyle,callback:v=>`${v>=0?'+':''}${v}%`}, grid:gridStyle }
+                },
+                plugins: { legend:{display:false} }
+            }
+        }));
+
+        // ── Individual results list ──
+        const listCard = el('div', 'chart-card span-4');
+        listCard.innerHTML = `
+            <div class="card-title">Individual Results</div>
+            <div class="card-desc">Each participant's calm delta sorted from most calmed to most stressed. Blue = net calming effect; red = net stress increase.</div>
+            <div class="results-list" id="results-list"></div>
+        `;
+        body.appendChild(listCard);
+        const sorted = [...sessions].sort((a,b) => b.calmDelta - a.calmDelta);
+        const resList = listCard.querySelector('#results-list');
+        const maxAbs = Math.max(...sorted.map(s => Math.abs(s.calmDelta)), 1);
+        sorted.forEach((s, i) => {
+            const isCalm = s.calmDelta >= 0;
+            const pct = Math.abs(s.calmDelta) / maxAbs * 100;
+            const row = document.createElement('div');
+            row.className = 'result-row';
+            row.innerHTML = `
+                <div class="result-label">${s.headsetName || `P${s.panelId}`}</div>
+                <div class="result-bar-track">
+                    <div class="result-bar-fill" style="width:${pct}%;background:${isCalm?'rgba(74,127,255,.65)':'rgba(229,62,109,.55)'}"></div>
+                </div>
+                <div class="result-value" style="color:${isCalm?'rgba(74,127,255,.9)':'rgba(229,62,109,.9)'}">${s.calmDelta>=0?'+':''}${s.calmDelta}%</div>
+            `;
+            resList.appendChild(row);
+        });
+    }
+
+    function el(tag, cls) {
+        const e = document.createElement(tag);
+        if (cls) e.className = cls;
+        return e;
+    }
+
+    function makeChartCard(title, desc, spanClass, canvasHeight) {
+        const card = el('div', `chart-card ${spanClass}`);
+        card.innerHTML = `
+            <div class="card-title">${title}</div>
+            <div class="card-desc">${desc}</div>
+            <div class="card-canvas-wrap">
+                <canvas style="height:${canvasHeight}px"></canvas>
+            </div>
+        `;
+        return { card, canvas: card.querySelector('canvas') };
+    }
+
+    // ══════════════════════════════════════════
+    //  MusePanel class
+    // ══════════════════════════════════════════
+    class MusePanel {
+        constructor(panelId, defaultIp = '127.0.0.1', defaultPort = 8000) {
+            this.panelId = panelId;
+            this.oscStatus         = document.getElementById(`osc-status-${panelId}`);
+            this.oscLog            = document.getElementById(`osc-log-${panelId}`);
+            this.inpOscIp          = document.getElementById(`inp-osc-ip-${panelId}`);
+            this.inpOscPort        = document.getElementById(`inp-osc-port-${panelId}`);
+            this.btnUpdateConn     = document.getElementById(`btn-update-conn-${panelId}`);
+            this.btnConnectMuse    = document.getElementById(`btn-connect-muse-${panelId}`);
+            this.btnDisconnectMuse = document.getElementById(`btn-disconnect-muse-${panelId}`);
+            this.btnSimulate       = document.getElementById(`btn-simulate-${panelId}`);
+            this.btnResetCalib     = document.getElementById(`btn-reset-calib-${panelId}`);
+            this.headsetIdEl       = document.getElementById(`headset-id-${panelId}`);
+            this.indState          = document.getElementById(`indicator-state-${panelId}`);
+            this.indDesc           = document.getElementById(`indicator-desc-${panelId}`);
+            this.progContainer     = document.getElementById(`progress-bar-container-${panelId}`);
+            this.progBar           = document.getElementById(`progress-bar-${panelId}`);
+
+            this.ws = null; this.museClient = null; this.intervalId = null;
+            this._simInterval = null; this.isSimulating = false;
+            this.appState = 'INITIALIZING';
+            this.calibrationData = []; this.baselinePromedio = 1; this.baselineStdDev = 0.001;
+            this.smoothedCalmScore = 0.5; this.calibrationProgress = 0;
+            this.MA_WINDOW = 115; this.lastNCampsScores = [];
+            this.dynamicAlphaEma = 0.05; this.sessionTotalTicks = 0; this.sessionCalmTicks = 0;
+            this.calmFinal = 0.0; this.calibTriggerFired = false;
+            this.calibResetTimerId = null; this.calibProgressLocked = false;
+            this.TARGET_CALIBRATION_SAMPLES = 300;
+            this.sessionCalmValues = [];
+            this.chart = null; this.chartStartTime = null; this.chartExported = false;
+            this.rawAlpha = 0.5; this.rawBeta = 0.5; this.rawGamma = 0.1;
+            this.rawTheta = 0.5; this.rawDelta = 0.5;
+            this.currentGyro = [0,0,0]; this.currentAccel = [0,0,0];
+            this.sensorOn = 0; this.sensorActive = 0; this.eegWatchdog = null;
+            this.btForceOff = false;
+            this.currentBpm = 75; this.headsetName = `Muse_${panelId}`;
+            this.lastSentIp = null; this.lastSentPort = null;
+
+            if (this.inpOscIp)   this.inpOscIp.value   = defaultIp;
+            if (this.inpOscPort) this.inpOscPort.value  = defaultPort;
+
+            this.initOSCRelay();
+            this.attachListeners();
+        }
+
+        smooth(c, t, f = 0.05) {
+            if (c === undefined || Number.isNaN(c)) return t;
+            return c + (t - c) * f;
+        }
+
+        logOSC(msg) {
+            if (!this.oscLog) return;
+            const e = document.createElement('div');
+            e.innerText = msg;
+            this.oscLog.appendChild(e);
+            if (this.oscLog.children.length > 30) this.oscLog.removeChild(this.oscLog.firstChild);
+            this.oscLog.scrollTop = this.oscLog.scrollHeight;
+        }
+
+        initOSCRelay() {
+            this.ws = new WebSocket('ws://localhost:3000');
+            this.ws.onopen = () => {
+                if (this.oscStatus) { this.oscStatus.innerText = 'ONLINE'; this.oscStatus.className = 'status-indicator online'; }
+                this.logOSC('Connected to WS server!');
+                if (this.inpOscIp && this.inpOscPort)
+                    this.ws.send(JSON.stringify({ type:'config_update', ip:this.inpOscIp.value, port:parseInt(this.inpOscPort.value) }));
+            };
+            this.ws.onmessage = (ev) => {
+                const msg = JSON.parse(ev.data);
+                if (msg.status === 'info') this.logOSC(`[Server] ${msg.msg}`);
+            };
+            this.ws.onclose = () => {
+                if (this.oscStatus && this.oscStatus.innerText !== 'OFFLINE') {
+                    this.oscStatus.innerText = 'OFFLINE'; this.oscStatus.className = 'status-indicator offline';
+                    this.logOSC('Disconnected. Retrying...');
+                }
+                setTimeout(() => this.initOSCRelay(), 5000);
+            };
+            this.ws.onerror = () => {};
+        }
+
+        setAppState(state, desc) {
+            this.appState = state;
+            if (this.indState) this.indState.innerText = state;
+            if (this.indDesc)  this.indDesc.innerText  = desc;
+        }
+
+        broadcastFullTelemetry(calmScore) {
+            if (!(this.ws && this.ws.readyState === WebSocket.OPEN)) return;
+            const ip   = this.inpOscIp   ? this.inpOscIp.value.trim()      : null;
+            const port = this.inpOscPort ? parseInt(this.inpOscPort.value) : null;
+            if (ip && (ip !== this.lastSentIp || port !== this.lastSentPort)) {
+                this.logOSC(`→ OSC target: ${ip}:${port}`);
+                this.lastSentIp = ip; this.lastSentPort = port;
+            }
+            let outCalibCompleted = 0.0;
+            if (this.appState === 'RUNNING' && !this.calibTriggerFired) { outCalibCompleted = 1.0; this.calibTriggerFired = true; }
+            else if (this.appState !== 'RUNNING') { this.calibTriggerFired = false; }
+            const _btOn = this.btForceOff ? 0 : ((this.appState === 'WARMUP' || this.appState === 'CALIBRATING' || this.appState === 'RUNNING') ? 1 : 0);
+            this.ws.send(JSON.stringify({
+                type:'full_telemetry', oscIp:ip, oscPort:port,
+                sensorOn:_btOn, sensorActive:this.sensorActive,
+                gyro:this.currentGyro, accel:this.currentAccel,
+                alpha:this.rawAlpha, beta:this.rawBeta, gamma:this.rawGamma,
+                theta:this.rawTheta, delta:this.rawDelta,
+                calm:calmScore, bpm:this.currentBpm,
+                calibProgress:this.calibrationProgress, calm_final:this.calmFinal,
+                calib_completed:outCalibCompleted, headset_id:this.headsetName
+            }));
+        }
+
+        initChart() {
+            const canvas = document.getElementById(`chart-${this.panelId}`);
+            if (!canvas) return;
+            if (this.chart) { this.chart.destroy(); this.chart = null; }
+            this.chartStartTime = null; this.chartExported = false; this.sessionCalmValues = [];
+            const saved = document.getElementById(`chart-saved-${this.panelId}`);
+            if (saved) saved.style.display = 'none';
+            const badge = document.getElementById(`calm-badge-${this.panelId}`);
+            if (badge) badge.classList.remove('visible');
+
+            this.chart = new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label:'Stress', data:[], borderColor:'#4A7FFF', backgroundColor:'rgba(74,127,255,.06)', fill:true, borderWidth:1.5, pointRadius:0, tension:.3 },
+                        { label:'Neutral', data:[], borderColor:'rgba(74,127,255,.2)', borderDash:[4,4], borderWidth:1, pointRadius:0, fill:false }
+                    ]
+                },
+                options: {
+                    responsive:true, maintainAspectRatio:false, animation:false,
+                    scales: {
+                        x: { ticks:{color:'#4A5A7A',font:{family:"'IBM Plex Mono'",size:8},maxTicksLimit:6}, grid:{color:'rgba(74,127,255,.06)'} },
+                        y: { min:0,max:1, ticks:{color:'#4A5A7A',font:{family:"'IBM Plex Mono'",size:8},stepSize:.5,callback:v=>v===0?'Calm':v===1?'Stress':'0.5'}, grid:{color:'rgba(74,127,255,.06)'} }
+                    },
+                    plugins: { legend:{display:false} }
+                }
+            });
+        }
+
+        updateChart(stressValue) {
+            if (!this.chart) return;
+            if (!this.chartStartTime) this.chartStartTime = Date.now();
+            const elapsed = Date.now() - this.chartStartTime;
+            if (elapsed >= globalDurationMs) {
+                if (!this.chartExported) { this.chartExported = true; this.exportChart(); }
+                return;
+            }
+            const label = (elapsed / 1000).toFixed(1) + 's';
+            this.chart.data.labels.push(label);
+            this.chart.data.datasets[0].data.push(stressValue);
+            this.chart.data.datasets[1].data.push(0.5);
+            this.chart.update('none');
+        }
+
+        computeCalmDelta() {
+            if (this.sessionCalmValues.length < 8) return null;
+            const n = this.sessionCalmValues.length;
+            const quarter = Math.max(2, Math.floor(n * 0.25));
+            const first = this.sessionCalmValues.slice(0, quarter);
+            const last  = this.sessionCalmValues.slice(n - quarter);
+            const avgFirst = first.reduce((a,b) => a+b, 0) / first.length;
+            const avgLast  = last.reduce((a,b)  => a+b, 0) / last.length;
+            return Math.round((avgLast - avgFirst) * 100);
+        }
+
+        exportChart() {
+            if (!this.chart) return;
+            const wrap = this.chart.canvas.parentElement;
+            const origWidth  = wrap.offsetWidth  || 800;
+            const origHeight = wrap.offsetHeight || 300;
+
+            const delta    = this.computeCalmDelta();
+            const hasDelta = delta !== null;
+            const deltaText  = hasDelta ? `${delta >= 0 ? '+' : ''}${delta}%` : null;
+            const deltaLabel = hasDelta ? (delta >= 0 ? 'CALMED' : 'STRESSED') : null;
+
+            this.chart.resize(1920, 600);
+            const ctx1 = this.chart.canvas.getContext('2d');
+            ctx1.globalCompositeOperation = 'destination-over';
+            ctx1.fillStyle = '#020617';
+            ctx1.fillRect(0, 0, 1920, 600);
+            ctx1.globalCompositeOperation = 'source-over';
+
+            if (hasDelta) {
+                const cx = 1840, cy = 300, r = 100;
+                ctx1.save();
+                ctx1.beginPath(); ctx1.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx1.fillStyle = '#FFFFFF'; ctx1.fill();
+                ctx1.textAlign = 'center'; ctx1.textBaseline = 'middle';
+                ctx1.fillStyle = '#020617';
+                ctx1.font = 'bold 38px "IBM Plex Mono", monospace';
+                ctx1.fillText(deltaText, cx, cy - 14);
+                ctx1.fillStyle = '#4A5A7A';
+                ctx1.font = '15px "IBM Plex Mono", monospace';
+                ctx1.fillText(deltaLabel, cx, cy + 22);
+                ctx1.restore();
+            }
+            const imageDataFull = this.chart.canvas.toDataURL('image/png');
+            this.chart.resize(origWidth, origHeight);
+
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = 1920; tempCanvas.height = 600;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.fillStyle = '#020617'; tempCtx.fillRect(0, 0, 1920, 600);
+            const tempChart = new Chart(tempCanvas, {
+                type:'line',
+                data:{ labels:[...this.chart.data.labels], datasets:[{ data:[...this.chart.data.datasets[0].data], borderColor:'#4A7FFF', backgroundColor:'rgba(74,127,255,.07)', fill:true, borderWidth:2.5, pointRadius:0, tension:.3 }] },
+                options:{ responsive:false, animation:false, scales:{ x:{display:false}, y:{display:false,min:0,max:1} }, plugins:{legend:{display:false}} }
+            });
+            const imageDataClean = tempCanvas.toDataURL('image/png');
+            tempChart.destroy();
+
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                this.ws.send(JSON.stringify({ type:'save_chart_image', image:imageDataFull,  player:this.panelId, suffix:'_data' }));
+                this.ws.send(JSON.stringify({ type:'save_chart_image', image:imageDataClean, player:this.panelId, suffix:'_clean' }));
+                this.logOSC(`[Chart] Saved. Calm: ${deltaText ?? 'n/a'}`);
+            }
+
+            const saved = document.getElementById(`chart-saved-${this.panelId}`);
+            if (saved) saved.style.display = 'inline';
+
+            if (hasDelta) {
+                const badge   = document.getElementById(`calm-badge-${this.panelId}`);
+                const valEl   = document.getElementById(`calm-badge-value-${this.panelId}`);
+                const labelEl = document.getElementById(`calm-badge-label-${this.panelId}`);
+                if (badge && valEl && labelEl) { valEl.innerText = deltaText; labelEl.innerText = deltaLabel; badge.classList.add('visible'); }
+            }
+
+            this.persistSession(delta);
+        }
+
+        persistSession(calmDelta) {
+            if (calmDelta === null || this.sessionCalmValues.length === 0) return;
+            const sessions = getSessions();
+            sessions.push({
+                id: Date.now(), timestamp: new Date().toISOString(),
+                panelId: this.panelId, headsetName: this.headsetName,
+                calmDelta,
+                stressValues: normalizeToN(this.sessionCalmValues.map(v => 1 - v), 100)
+            });
+            saveSessions(sessions);
+        }
+
+        startBroadcastLoop() {
+            if (this.intervalId) { clearInterval(this.intervalId); this.intervalId = null; }
+            this.intervalId = setInterval(() => {
+                const currentRatio = this.rawAlpha / (this.rawBeta + 0.4 * this.rawGamma + 0.001);
+
+                if (this.appState === 'WARMUP') {
+                    const elapsed = Date.now() - this.warmupStartTime;
+                    if (elapsed >= 2000) {
+                        this.setAppState('CALIBRATING', 'Close your eyes and relax...');
+                    } else {
+                        this.setAppState('WARMUP', `Stabilizing signal... ${((2000 - elapsed) / 1000).toFixed(1)}s`);
+                    }
+                    this.broadcastFullTelemetry(0.0);
+                    return;
+                }
+
+                if (this.appState === 'CALIBRATING') {
+                    if (this.sensorActive === 0) {
+                        this.setAppState('CALIBRATING', 'Headset inactive. Adjust position...');
+                        this.broadcastFullTelemetry(0.0); return;
+                    }
+                    this.calibrationData.push(currentRatio);
+                    this.calibrationProgress = this.calibrationData.length / this.TARGET_CALIBRATION_SAMPLES;
+                    if (this.progBar) this.progBar.style.width = `${Math.min(this.calibrationProgress * 100, 100)}%`;
+                    this.setAppState('CALIBRATING', 'Close your eyes and relax...');
+                    if (this.calibrationData.length >= this.TARGET_CALIBRATION_SAMPLES) {
+                        this.baselinePromedio = this.calibrationData.reduce((a,b) => a+b, 0) / this.calibrationData.length;
+                        const variance = this.calibrationData.reduce((a,b) => a + Math.pow(b - this.baselinePromedio, 2), 0) / this.calibrationData.length;
+                        this.baselineStdDev = Math.max(Math.sqrt(variance), 0.0001);
+                        this.setAppState('RUNNING', `Baseline: ${this.baselinePromedio.toFixed(2)}`);
+                        if (this.progContainer) this.progContainer.style.display = 'none';
+
+                        if (this.calibResetTimerId) clearTimeout(this.calibResetTimerId);
+                        this.calibProgressLocked = false;
+                        this.calibResetTimerId = setTimeout(() => {
+                            this.calibProgressLocked = true;
+                            this.logOSC(`[P${this.panelId}] Calib OSC reset → 0 (5s post-calibration)`);
+                        }, 5000);
+                    }
+                    this.broadcastFullTelemetry(0.0);
+
+                } else if (this.appState === 'RUNNING') {
+                    this.calibrationProgress = this.calibProgressLocked ? 0.0 : 1.0;
+                    let zScore = Math.min(Math.max((currentRatio - this.baselinePromedio) / this.baselineStdDev, -2.0), 2.0);
+                    let normalizedScore = (zScore + 2.0) / 4.0;
+                    this.lastNCampsScores.push(normalizedScore);
+                    if (this.lastNCampsScores.length > this.MA_WINDOW) this.lastNCampsScores.shift();
+                    this.smoothedCalmScore = this.lastNCampsScores.reduce((a,b) => a+b, 0) / this.lastNCampsScores.length;
+                    const finalOSCValue = this.smoothedCalmScore;
+                    this.sessionCalmValues.push(finalOSCValue);
+                    this.updateChart(1.0 - finalOSCValue);
+                    if (this.sensorActive === 1) {
+                        this.sessionTotalTicks++;
+                        if (finalOSCValue > 0.7) this.sessionCalmTicks++;
+                        this.calmFinal = this.sessionCalmTicks / this.sessionTotalTicks;
+                    }
+                    this.broadcastFullTelemetry(finalOSCValue);
+                }
+            }, 50);
+        }
+
+        async resetCalibration() {
+            if ((!this.museClient && !this.isSimulating) || this.appState === 'DISCONNECTED' || this.appState === 'CONNECTING') {
+                this.logOSC(`[P${this.panelId}] Reset ignored — not connected.`);
+                return;
+            }
+            if (this.btnResetCalib) this.btnResetCalib.disabled = true;
+            this.logOSC(`[P${this.panelId}] RESET → BT pulse 1→0→1 on OSC idx16 (data17)`);
+
+            // 1. Pause the data-driven broadcast loop so it doesn't race with the pulse
+            if (this.intervalId) { clearInterval(this.intervalId); this.intervalId = null; }
+
+            // 2. Force BT=0 and send the zero-pulse directly (~400ms, every 50ms = 8 packets)
+            this.btForceOff = true;
+            this.indState && (this.indState.innerText = 'RESETTING');
+            this.indDesc  && (this.indDesc.innerText  = 'Pulsing BT 0 → Unreal...');
+            for (let i = 0; i < 8; i++) {
+                this.broadcastFullTelemetry(0.0);
+                await new Promise(r => setTimeout(r, 50));
+            }
+
+            // 3. Clear calibration / session state
+            this.calibrationData = []; this.calibrationProgress = 0;
+            this.baselinePromedio = 1; this.baselineStdDev = 0.001;
+            this.smoothedCalmScore = 0.5; this.lastNCampsScores = [];
+            this.sessionTotalTicks = 0; this.sessionCalmTicks = 0;
+            this.calmFinal = 0.0; this.calibTriggerFired = false;
+            if (this.calibResetTimerId) { clearTimeout(this.calibResetTimerId); this.calibResetTimerId = null; }
+            this.calibProgressLocked = false;
+            this.sessionCalmValues = []; this.chartExported = false;
+            this.initChart();
+
+            // 4. Re-enter WARMUP and restart the broadcast loop → BT will return to 1
+            this.btForceOff = false;
+            this.warmupStartTime = Date.now();
+            if (this.progContainer) this.progContainer.style.display = 'block';
+            if (this.progBar) this.progBar.style.width = '0%';
+            this.setAppState('WARMUP', 'Stabilizing signal...');
+            this.startBroadcastLoop();
+
+            if (this.btnResetCalib) this.btnResetCalib.disabled = false;
+        }
+
+        async disconnectMuse() {
+            if (this._simInterval) { clearInterval(this._simInterval); this._simInterval = null; }
+            this.isSimulating = false;
+            if (this.intervalId) { clearInterval(this.intervalId); this.intervalId = null; }
+            if (this.museClient) { try { await this.museClient.disconnect(); } catch(e){} this.museClient = null; }
+            this.sensorOn = 0; this.sensorActive = 0;
+            this.calibrationData = []; this.calibrationProgress = 0; this.baselinePromedio = 1;
+            this.baselineStdDev = 0.001; this.smoothedCalmScore = 0.5; this.lastNCampsScores = [];
+            this.sessionTotalTicks = 0; this.sessionCalmTicks = 0;
+            this.calmFinal = 0.0; this.calibTriggerFired = false;
+            if (this.calibResetTimerId) { clearTimeout(this.calibResetTimerId); this.calibResetTimerId = null; }
+            this.calibProgressLocked = false;
+            clearTimeout(this.eegWatchdog);
+            this.setAppState('DISCONNECTED', 'Manually disconnected.');
+            this.broadcastFullTelemetry(0.0);
+
+            if (!this.chartExported && this.sessionCalmValues.length > 20) {
+                this.persistSession(this.computeCalmDelta());
+            }
+            this.sessionCalmValues = [];
+
+            this.btnConnectMuse.innerText = `Connect Muse P${this.panelId}`;
+            this.btnConnectMuse.disabled = false; this.btnConnectMuse.style.display = 'block';
+            if (this.btnSimulate) { this.btnSimulate.style.display = 'block'; this.btnSimulate.classList.remove('sim-active'); this.btnSimulate.innerText = `◈ Simulate P${this.panelId}`; }
+            if (this.btnDisconnectMuse) this.btnDisconnectMuse.style.display = 'none';
+            if (this.btnResetCalib)     this.btnResetCalib.style.display = 'none';
+            if (this.headsetIdEl) this.headsetIdEl.innerText = '—';
+            this.logOSC(`[P${this.panelId}] Disconnected. calibProgress → 0.`);
+
+            // Keep broadcasting disconnected state so Unreal receives stable values at index 18/19
+            this.intervalId = setInterval(() => this.broadcastFullTelemetry(0.0), 100);
+        }
+
+        startSimulation() {
+            if (this.isSimulating) return;
+            this.isSimulating = true;
+            this.headsetName = `SIM_P${this.panelId}`;
+            if (this.headsetIdEl) this.headsetIdEl.innerText = this.headsetName;
+            this.initChart();
+            incrementUserCount();
+            this.sensorOn = 1;
+            this.sensorActive = 1;
+            this.logOSC(`[P${this.panelId}] Simulation started.`);
+
+            this.btnConnectMuse.style.display = 'none';
+            if (this.btnSimulate) { this.btnSimulate.classList.add('sim-active'); this.btnSimulate.innerText = `◈ Stop Sim P${this.panelId}`; }
+            if (this.btnResetCalib) this.btnResetCalib.style.display = 'block';
+
+            let t = 0;
+            this._simInterval = setInterval(() => {
+                t += 0.05;
+                this.rawAlpha = Math.max(0, Math.min(1, 0.45 + 0.20 * Math.sin(t * 0.30) + 0.05 * Math.sin(t * 1.70) + (Math.random() - 0.5) * 0.08));
+                this.rawBeta  = Math.max(0, Math.min(1, 0.35 + 0.10 * Math.sin(t * 0.50 + 1.0) + (Math.random() - 0.5) * 0.06));
+                this.rawTheta = Math.max(0, Math.min(1, 0.40 + 0.15 * Math.sin(t * 0.20 + 2.0) + (Math.random() - 0.5) * 0.07));
+                this.rawDelta = Math.max(0, Math.min(1, 0.30 + 0.10 * Math.sin(t * 0.10 + 3.0) + (Math.random() - 0.5) * 0.05));
+                this.rawGamma = Math.max(0, Math.min(1, 0.08 + 0.03 * Math.sin(t * 0.80) + Math.random() * 0.02));
+                this.currentBpm = 72 + 8 * Math.sin(t * 0.15) + 3 * Math.sin(t * 0.8) + (Math.random() - 0.5) * 2;
+                this.currentGyro[0] = 0.5 * Math.sin(t * 0.10);
+                this.currentGyro[1] = 0.3 * Math.sin(t * 0.13 + 1);
+                this.currentGyro[2] = 0.2 * Math.sin(t * 0.07 + 2);
+                this.currentAccel[0] = 0.02 * Math.sin(t * 0.05);
+                this.currentAccel[1] = 0.98 + 0.02 * Math.sin(t * 0.08);
+                this.currentAccel[2] = 0.01 * Math.sin(t * 0.06 + 1);
+            }, 50);
+
+            this.warmupStartTime = Date.now();
+            if (this.progContainer) this.progContainer.style.display = 'block';
+            if (this.progBar) this.progBar.style.width = '0%';
+            this.setAppState('WARMUP', 'Simulation: stabilizing...');
+            if (this.intervalId) { clearInterval(this.intervalId); this.intervalId = null; }
+            this.startBroadcastLoop();
+        }
+
+        stopSimulation() {
+            if (!this.isSimulating) return;
+            if (this._simInterval) { clearInterval(this._simInterval); this._simInterval = null; }
+            if (this.intervalId) { clearInterval(this.intervalId); this.intervalId = null; }
+            this.isSimulating = false;
+            this.sensorOn = 0;
+            this.sensorActive = 0;
+
+            this.calibrationData = []; this.calibrationProgress = 0;
+            this.baselinePromedio = 1; this.baselineStdDev = 0.001;
+            this.smoothedCalmScore = 0.5; this.lastNCampsScores = [];
+            this.sessionTotalTicks = 0; this.sessionCalmTicks = 0;
+            this.calmFinal = 0.0; this.calibTriggerFired = false;
+            if (this.calibResetTimerId) { clearTimeout(this.calibResetTimerId); this.calibResetTimerId = null; }
+            this.calibProgressLocked = false;
+
+            if (!this.chartExported && this.sessionCalmValues.length > 20) {
+                this.persistSession(this.computeCalmDelta());
+            }
+            this.sessionCalmValues = [];
+
+            this.setAppState('DISCONNECTED', 'Simulation stopped.');
+            this.broadcastFullTelemetry(0.0);
+
+            this.btnConnectMuse.disabled = false;
+            this.btnConnectMuse.style.display = 'block';
+            if (this.btnSimulate) { this.btnSimulate.style.display = 'block'; this.btnSimulate.classList.remove('sim-active'); this.btnSimulate.innerText = `◈ Simulate P${this.panelId}`; }
+            if (this.btnDisconnectMuse) this.btnDisconnectMuse.style.display = 'none';
+            if (this.btnResetCalib) this.btnResetCalib.style.display = 'none';
+            if (this.headsetIdEl) this.headsetIdEl.innerText = '—';
+            this.logOSC(`[P${this.panelId}] Simulation stopped.`);
+
+            this.intervalId = setInterval(() => this.broadcastFullTelemetry(0.0), 100);
+        }
+
+        attachListeners() {
+            if (this.btnUpdateConn) {
+                this.btnUpdateConn.addEventListener('click', () => {
+                    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                        const ip = this.inpOscIp.value.trim(), port = parseInt(this.inpOscPort.value);
+                        this.ws.send(JSON.stringify({ type:'config_update', ip, port }));
+                        this.logOSC(`→ Route updated: ${ip}:${port}`);
+                        this.btnUpdateConn.innerText = '✓ UPDATED';
+                        setTimeout(() => { this.btnUpdateConn.innerText = `Verify / Update P${this.panelId}`; }, 1500);
+                    } else { this.logOSC('WS OFFLINE — retrying...'); this.initOSCRelay(); }
+                });
+            }
+            if (this.btnDisconnectMuse) this.btnDisconnectMuse.addEventListener('click', () => this.disconnectMuse());
+            if (this.btnConnectMuse)    this.btnConnectMuse.addEventListener('click', async () => this.connectMuse());
+            if (this.btnSimulate)       this.btnSimulate.addEventListener('click', () => { if (this.isSimulating) this.stopSimulation(); else this.startSimulation(); });
+            if (this.btnResetCalib)     this.btnResetCalib.addEventListener('click', () => this.resetCalibration());
+        }
+
+        async connectMuse() {
+            try {
+                if (!navigator.bluetooth) { alert('Web Bluetooth is not supported in this browser.'); return; }
+                this.setAppState('CONNECTING', 'Pairing Bluetooth headset...');
+                this.btnConnectMuse.innerText = 'CONNECTING...';
+                if (!this.museClient) this.museClient = new MuseClient();
+                await this.museClient.connect();
+                await this.museClient.start();
+
+                this.headsetName = this.museClient.deviceName || `Muse_${this.panelId}`;
+                if (this.headsetIdEl) this.headsetIdEl.innerText = this.headsetName;
+                this.initChart();
+
+                this.btnConnectMuse.innerText = `Connected — ${this.headsetName}`;
+                this.btnConnectMuse.disabled = true;
+                this.btnConnectMuse.style.display = 'none';
+                if (this.btnSimulate)       this.btnSimulate.style.display = 'none';
+                if (this.btnDisconnectMuse) this.btnDisconnectMuse.style.display = 'block';
+                if (this.btnResetCalib)     this.btnResetCalib.style.display = 'block';
+
+                this.sensorOn = 1;
+                incrementUserCount();
+                this.logOSC(`[P${this.panelId}] Connected: ${this.headsetName}`);
+
+                this.museClient.connectionStatus.subscribe(status => {
+                    this.sensorOn = status ? 1 : 0;
+                    if (!status) {
+                        this.sensorActive = 0;
+                        this.setAppState('DISCONNECTED', 'Bluetooth link lost.');
+                        this.btnConnectMuse.innerText = 'RECONNECT MUSE';
+                        this.btnConnectMuse.disabled = false;
+                        // BT dropped naturally — stop session interval and start keep-alive
+                        if (this.intervalId) { clearInterval(this.intervalId); this.intervalId = null; }
+                        this.intervalId = setInterval(() => this.broadcastFullTelemetry(0.0), 100);
+                    }
+                });
+
+                // 2-second warmup before calibration begins. BT idx16=1 already
+                // streaming so Unreal sees the connection, but the progress bar holds.
+                this.setAppState('WARMUP', 'Stabilizing signal...');
+                if (this.progContainer) this.progContainer.style.display = 'block';
+                if (this.progBar) this.progBar.style.width = '0%';
+                this.warmupStartTime = Date.now();
+
+                // Clear keep-alive interval that may be running from a prior disconnect
+                if (this.intervalId) { clearInterval(this.intervalId); this.intervalId = null; }
+
+                this.startBroadcastLoop();
+
+                this.museClient.eegReadings.subscribe(reading => {
+                    clearTimeout(this.eegWatchdog);
+                    const samples = reading.samples;
+                    if (!samples || samples.length === 0) return;
+                    const avgPower = samples.reduce((acc, v) => acc + Math.abs(v), 0) / samples.length;
+                    if (avgPower >= 1.0) this.sensorActive = 1;
+                    this.rawAlpha = this.smooth(this.rawAlpha, (avgPower * 0.1) % 1.0, this.dynamicAlphaEma);
+                    this.rawBeta  = this.smooth(this.rawBeta,  (avgPower * 0.2) % 1.0, 0.05);
+                    this.rawTheta = this.smooth(this.rawTheta, (avgPower * 0.15) % 1.0, 0.05);
+                    this.rawDelta = this.smooth(this.rawDelta, (avgPower * 0.05) % 1.0, 0.05);
+                    this.rawGamma = (avgPower > 400) ? 1.0 : this.smooth(this.rawGamma, 0.1, 0.05);
+                    this.currentBpm = this.smooth(this.currentBpm, 70 + (avgPower % 30), 0.01);
+                    this.eegWatchdog = setTimeout(() => { this.sensorActive = 0; }, 800);
+                });
+
+                this.museClient.gyroscopeData.subscribe(reading => {
+                    if (reading.samples.length > 0) {
+                        const s = reading.samples[reading.samples.length - 1];
+                        this.currentGyro[0] = this.smooth(this.currentGyro[0], s.x, 0.2);
+                        this.currentGyro[1] = this.smooth(this.currentGyro[1], s.y, 0.2);
+                        this.currentGyro[2] = this.smooth(this.currentGyro[2], s.z, 0.2);
+                    }
+                });
+
+                this.museClient.accelerometerData.subscribe(reading => {
+                    if (reading.samples.length > 0) {
+                        const s = reading.samples[reading.samples.length - 1];
+                        this.currentAccel[0] = this.smooth(this.currentAccel[0], s.x, 0.2);
+                        this.currentAccel[1] = this.smooth(this.currentAccel[1], s.y, 0.2);
+                        this.currentAccel[2] = this.smooth(this.currentAccel[2], s.z, 0.2);
+                        const mag = Math.sqrt(s.x*s.x + s.y*s.y + s.z*s.z);
+                        this.dynamicAlphaEma = mag > 1.2 ? 0.01 : 0.05;
+                    }
+                });
+
+            } catch (e) {
+                console.error(`[Panel ${this.panelId}] Error:`, e);
+                this.sensorOn = 0; this.sensorActive = 0;
+                this.setAppState('DISCONNECTED', 'Connection error.');
+                this.btnConnectMuse.innerText = 'ERROR - RETRY';
+                this.btnConnectMuse.disabled = false;
+            }
+        }
+    }
+
+    // ── Init ──
+    document.addEventListener('DOMContentLoaded', () => {
+        // First-load: force one-shot reseed to the 75 / +4% baseline; afterwards, seed only if empty.
+        const SEED_VERSION = 'v2-75-avg7';
+        if (localStorage.getItem('soulcharger_seed_version') !== SEED_VERSION) {
+            seedDemoData();
+            localStorage.setItem('soulcharger_seed_version', SEED_VERSION);
+        } else if (getSessions().length === 0) {
+            seedDemoData();
+        }
+
+        // ── Research-only window (?view=research) ──
+        const isResearchOnly = new URLSearchParams(location.search).get('view') === 'research';
+        if (isResearchOnly) {
+            document.title = 'Soul Charger — Research';
+            document.body.classList.add('research-only');
+            renderResearchView();
+            document.getElementById('view-research').classList.add('active');
+            const reseedBtn = document.getElementById('btn-reseed-demo');
+            if (reseedBtn) reseedBtn.addEventListener('click', () => {
+                if (confirm('Replace stored sessions with 75 demo participants (avg +7% calm)?')) {
+                    seedDemoData();
+                    renderResearchView();
+                }
+            });
+            const clearBtn = document.getElementById('btn-clear-sessions');
+            if (clearBtn) clearBtn.addEventListener('click', () => {
+                if (confirm('Delete all stored sessions?')) { saveSessions([]); renderResearchView(); }
+            });
+            window.addEventListener('storage', e => {
+                if (e.key === 'soulcharger_sessions' || e.key === null) renderResearchView();
+            });
+            // Periodic safety refresh (storage event fires only across windows, not same-origin same-window)
+            setInterval(renderResearchView, 2000);
+            return;
+        }
+
+        // ── Theme toggle (light / dark) ──
+        const themeBtn = document.getElementById('btn-theme-toggle');
+        const applyTheme = (mode) => {
+            if (mode === 'light') {
+                document.body.classList.add('light-mode');
+                if (themeBtn) themeBtn.innerText = '☀';
+            } else {
+                document.body.classList.remove('light-mode');
+                if (themeBtn) themeBtn.innerText = '☾';
+            }
+        };
+        applyTheme(localStorage.getItem('soulcharger_theme') || 'dark');
+        if (themeBtn) themeBtn.addEventListener('click', () => {
+            const next = document.body.classList.contains('light-mode') ? 'dark' : 'light';
+            localStorage.setItem('soulcharger_theme', next);
+            applyTheme(next);
+        });
+
+        const counterEl = document.getElementById('user-counter-value');
+        if (counterEl) counterEl.innerText = getUserCount();
+
+        document.getElementById('btn-reset-counter').addEventListener('click', () => {
+            if (confirm('Reset the user counter?\n(Research sessions are separate — use "Clear sessions" to delete them.)')) {
+                localStorage.setItem('soulcharger_users', 0);
+                if (counterEl) counterEl.innerText = '0';
+            }
+        });
+
+        const inpDuration = document.getElementById('inp-duration');
+        inpDuration.addEventListener('change', () => {
+            const secs = parseInt(inpDuration.value);
+            if (secs >= 1) globalDurationMs = secs * 1000;
+            else inpDuration.value = Math.round(globalDurationMs / 1000);
+        });
+
+        const viewResearch = document.getElementById('view-research');
+        const viewDeep     = document.getElementById('view-deep');
+
+        document.getElementById('btn-view-research').addEventListener('click', () => {
+            renderResearchView();
+            viewResearch.classList.add('active');
+        });
+        document.getElementById('btn-back-admin').addEventListener('click', () => {
+            viewResearch.classList.remove('active');
+            if (researchChart) { researchChart.destroy(); researchChart = null; }
+        });
+
+        document.getElementById('btn-to-deep').addEventListener('click', () => {
+            viewResearch.classList.remove('active');
+            renderDeepAnalysis();
+            viewDeep.classList.add('active');
+        });
+        document.getElementById('btn-back-research').addEventListener('click', () => {
+            viewDeep.classList.remove('active');
+            destroyDeepCharts();
+            renderResearchView();
+            viewResearch.classList.add('active');
+        });
+
+        document.getElementById('btn-clear-sessions').addEventListener('click', () => {
+            if (confirm('Delete all stored sessions?')) {
+                saveSessions([]);
+                renderResearchView();
+            }
+        });
+
+        document.getElementById('btn-reseed-demo').addEventListener('click', () => {
+            if (confirm('Replace stored sessions with 75 demo participants (avg +7% calm)?')) {
+                seedDemoData();
+                if (counterEl) counterEl.innerText = getUserCount();
+                renderResearchView();
+            }
+        });
+
+        new MusePanel('1', '127.0.0.1', 8000);
+        new MusePanel('2', '192.168.1.50', 8000);
+    });
+</script>
+</body>
+</html>

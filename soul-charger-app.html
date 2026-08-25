@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soul Charger — Bioreactive VR</title>
+    <script src="vendor/chart.umd.min.js"></script>
+    <style>
+@import url('vendor/fonts/all-fonts.css');
+
+:root {
+    --bg: #030508;
+    --aura-calm:    radial-gradient(circle, rgba(46,196,182,0.85) 0%, rgba(1,22,39,0.1) 70%);
+    --aura-stress:  radial-gradient(circle, rgba(231,29,54,0.85)  0%, rgba(1,22,39,0.1) 70%);
+    --aura-neutral: radial-gradient(circle, rgba(253,255,252,0.65) 0%, rgba(1,22,39,0.1) 70%);
+    --text: #FDFFFC;
+    --muted: #8492A6;
+    --accent: #2ec4b6;
+    --font-display: 'Syncopate', sans-serif;
+    --font-mono: 'Space Mono', monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#app {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+    background: radial-gradient(circle at 50% 50%, rgba(20,20,30,1) 0%, rgba(3,5,8,1) 100%);
+}
+
+/* ── Views ── */
+.view {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    transition: opacity 1.8s cubic-bezier(0.16, 1, 0.3, 1), transform 1.8s cubic-bezier(0.16, 1, 0.3, 1);
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(1.05);
+}
+.view.active { opacity: 1; pointer-events: auto; transform: scale(1); }
+
+/* ── Login ── */
+.brand-title {
+    font-family: var(--font-display);
+    font-size: 4.5rem;
+    letter-spacing: 0.2em;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    text-shadow: 0 0 25px rgba(253,255,252,0.25);
+    text-align: center;
+}
+
+.subtitle {
+    font-size: 1.2rem;
+    color: var(--muted);
+    margin-bottom: 2.5rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+}
+
+/* ── Buttons ── */
+button {
+    background: transparent;
+    color: var(--text);
+    font-family: var(--font-display);
+    font-size: 1rem;
+    letter-spacing: 0.15em;
+    padding: 1.5rem 3rem;
+    border: 1px solid rgba(253,255,252,0.3);
+    border-radius: 100px;
+    cursor: pointer;
+    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    backdrop-filter: blur(5px);
+}
+button:hover {
+    background: var(--text);
+    color: var(--bg);
+    box-shadow: 0 0 40px rgba(253,255,252,0.5);
+    transform: translateY(-4px) scale(1.02);
+}
+button:disabled { opacity: 0.4; pointer-events: none; }
+
+/* ── OSC Config (login) ── */
+.osc-config { margin-bottom: 2rem; text-align: center; }
+
+.osc-toggle {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    padding: 0.4rem 1rem;
+    border: 1px dashed rgba(46,196,182,0.5);
+    color: var(--accent);
+    border-radius: 4px;
+    cursor: pointer;
+    background: transparent;
+    letter-spacing: 0.1em;
+    transition: background 0.2s;
+}
+.osc-toggle:hover { background: rgba(46,196,182,0.1); transform: none; box-shadow: none; color: var(--accent); }
+
+.osc-fields {
+    display: none;
+    margin-top: 0.8rem;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.osc-fields.open { display: flex; }
+
+.osc-fields input {
+    background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(46,196,182,0.5);
+    color: var(--accent);
+    padding: 0.4rem 0.8rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    border-radius: 4px;
+    text-align: center;
+    outline: none;
+}
+.osc-fields input:focus { border-color: var(--text); }
+.osc-sep { color: var(--muted); font-size: 0.75rem; letter-spacing: 0.1em; }
+
+.ws-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 0.8rem;
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+}
+.ws-dot { width: 7px; height: 7px; border-radius: 50%; background: #e71d36; transition: background 0.4s; }
+.ws-dot.live { background: var(--accent); }
+
+/* ── Calibration ── */
+.calib-title {
+    font-family: var(--font-display);
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    font-size: 1.05rem;
+    font-weight: 400;
+    text-align: center;
+}
+.calib-sub { color: var(--text); font-family: var(--font-mono); margin: 14px 0; font-size: 0.82rem; letter-spacing: 0.05em; }
+#calib-bar-wrap { width: 300px; background: rgba(255,255,255,0.1); height: 4px; border-radius: 2px; margin: 18px 0; overflow: hidden; }
+#calib-bar { width: 0%; background: var(--accent); height: 100%; transition: width 0.1s linear; }
+.calib-pct { color: var(--accent); font-size: 1.5rem; font-family: var(--font-mono); }
+
+/* ── Dashboard ── */
+.bio-center { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; z-index: 1; }
+
+.sphere {
+    width: 65vh; height: 65vh;
+    border-radius: 50%;
+    background: var(--aura-neutral);
+    filter: blur(50px);
+    transition: background 2s ease, filter 1.5s ease;
+    animation: breathe 5s infinite alternate ease-in-out;
+}
+@keyframes breathe {
+    0%   { transform: scale(0.92); opacity: 0.6; }
+    100% { transform: scale(1.08); opacity: 1; }
+}
+
+.stats-panel {
+    position: absolute;
+    bottom: 50px;
+    display: flex;
+    gap: 4rem;
+    z-index: 2;
+    padding: 2rem 3rem;
+    background: rgba(3,5,8,0.6);
+    border: 1px solid rgba(253,255,252,0.15);
+    border-radius: 20px;
+    backdrop-filter: blur(20px);
+}
+.stat-box { display: flex; flex-direction: column; align-items: center; }
+.stat-box .s-label { font-size: 0.82rem; color: var(--muted); margin-bottom: 0.5rem; letter-spacing: 0.15em; }
+.stat-box .s-value { font-size: 2.2rem; font-weight: 700; }
+#val-state { font-size: 1.1rem; letter-spacing: 0.08em; }
+
+#btn-end { position: absolute; top: 50px; right: 50px; z-index: 2; padding: 1rem 2rem; font-size: 0.8rem; }
+
+/* ── Dev Panel (BT status monitor) ── */
+.dev-toggle {
+    position: absolute;
+    top: 20px; left: 20px;
+    z-index: 100;
+    font-size: 0.62rem;
+    padding: 0.35rem 0.7rem;
+    border: 1px dashed rgba(46,196,182,0.5);
+    color: var(--accent);
+    border-radius: 0;
+    cursor: pointer;
+    background: transparent;
+    font-family: var(--font-mono);
+    letter-spacing: 0.06em;
+    transition: background 0.2s;
+}
+.dev-toggle:hover { background: rgba(46,196,182,0.1); transform: none; box-shadow: none; color: var(--accent); }
+
+.dev-panel {
+    position: absolute;
+    top: 52px; left: 20px;
+    width: 295px;
+    background: rgba(3,5,8,0.92);
+    border: 1px solid rgba(46,196,182,0.3);
+    z-index: 99;
+    padding: 1rem;
+    font-family: var(--font-mono);
+    backdrop-filter: blur(10px);
+    border-radius: 4px;
+    transition: opacity 0.25s, transform 0.25s;
+}
+.dev-panel.hidden { opacity: 0; pointer-events: none; transform: translateX(-15px); }
+
+.dev-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.55rem;
+    font-size: 0.72rem;
+}
+.dev-row .k { color: var(--muted); }
+.dev-row .v { color: var(--accent); font-weight: 700; font-size: 0.78rem; }
+.dev-row .v.on  { color: #2ec4b6; }
+.dev-row .v.off { color: #e71d36; }
+
+.dev-sep { border: none; border-top: 1px dashed rgba(253,255,252,0.12); margin: 0.6rem 0; }
+
+.dev-log {
+    height: 80px;
+    overflow-y: auto;
+    font-size: 0.58rem;
+    background: rgba(0,0,0,0.4);
+    padding: 0.4rem;
+    border-radius: 3px;
+    color: #4CAF50;
+    line-height: 1.4;
+    margin-top: 0.6rem;
+    border: 1px solid rgba(46,196,182,0.12);
+}
+
+/* ── Chart ── */
+.chart-wrap {
+    position: absolute;
+    top: 50px; right: 50px;
+    width: 380px; height: 210px;
+    z-index: 2;
+    background: rgba(3,5,8,0.85);
+    border: 1px solid rgba(46,196,182,0.3);
+    border-radius: 10px;
+    padding: 1rem;
+}
+
+/* ── End Screen ── */
+.end-card {
+    background: rgba(3,5,8,0.4);
+    border: 1px solid rgba(46,196,182,0.3);
+    padding: 3rem;
+    border-radius: 20px;
+    box-shadow: 0 0 50px rgba(0,0,0,0.8);
+    backdrop-filter: blur(15px);
+    text-align: center;
+}
+.end-title { font-family: var(--font-display); font-size: 2.5rem; letter-spacing: 0.1em; margin-bottom: 0.5rem; }
+.end-sub  { color: var(--muted); letter-spacing: 0.1em; margin: 1.5rem 0; }
+.end-note { color: var(--accent); margin-bottom: 3rem; font-size: 0.9rem; letter-spacing: 0.1em; }
+
+/* ── Responsive ── */
+@media (max-width: 850px) {
+    .chart-wrap { display: none; }
+    .stats-panel { gap: 1.5rem; padding: 1.5rem 2rem; bottom: 70px; }
+    .brand-title { font-size: 2.8rem; }
+    #btn-end { right: 50%; transform: translateX(50%); }
+}
+    </style>
+</head>
+<body>
+<div id="app">
+
+    <!-- LOGIN ──────────────────────────────────────────────── -->
+    <div id="view-login" class="view active">
+        <h1 class="brand-title">SOUL CHARGER</h1>
+        <p class="subtitle">Synchronize your frequencies</p>
+
+        <div class="osc-config">
+            <button class="osc-toggle" id="btn-osc-toggle">⚙ OSC CONFIG</button>
+            <div class="osc-fields" id="osc-fields">
+                <span class="osc-sep">TARGET IP</span>
+                <input id="inp-ip"   value="127.0.0.1" style="width:120px;" placeholder="IP">
+                <span class="osc-sep">:</span>
+                <input id="inp-port" value="8000"      style="width:65px;"  placeholder="Port">
+            </div>
+            <div class="ws-status">
+                <span class="ws-dot" id="ws-dot"></span>
+                <span id="ws-label">Relay offline</span>
+            </div>
+        </div>
+
+        <button id="btn-connect">CONNECT MUSE</button>
+    </div>
+
+    <!-- CALIBRATION ────────────────────────────────────────── -->
+    <div id="view-calib" class="view" style="text-align:center;">
+        <p class="calib-title">ESTABLISHING NEURAL BASELINE</p>
+        <p class="calib-sub">Computing Z-Score Mapping…</p>
+        <div id="calib-bar-wrap"><div id="calib-bar"></div></div>
+        <span class="calib-pct" id="calib-pct">0%</span>
+    </div>
+
+    <!-- DASHBOARD ──────────────────────────────────────────── -->
+    <div id="view-dash" class="view">
+        <div class="bio-center">
+            <div id="sphere" class="sphere"></div>
+        </div>
+
+        <div class="stats-panel">
+            <div class="stat-box">
+                <span class="s-label">BPM</span>
+                <span class="s-value" id="val-bpm">--</span>
+            </div>
+            <div class="stat-box">
+                <span class="s-label">CALM STATE</span>
+                <span class="s-value" id="val-calm">--</span>
+            </div>
+            <div class="stat-box">
+                <span class="s-label">STATE</span>
+                <span class="s-value" id="val-state">Tuning…</span>
+            </div>
+        </div>
+
+        <div class="chart-wrap">
+            <canvas id="bio-chart"></canvas>
+        </div>
+
+        <button id="btn-end">END SESSION</button>
+
+        <!-- BT status monitor (dev overlay) -->
+        <button class="dev-toggle" id="dev-toggle">OSC DEBUG</button>
+        <div class="dev-panel hidden" id="dev-panel">
+            <div class="dev-row"><span class="k">App State</span>         <span class="v" id="d-state">—</span></div>
+            <div class="dev-row"><span class="k">Sensor Active</span>     <span class="v" id="d-sens">—</span></div>
+            <hr class="dev-sep">
+            <div class="dev-row"><span class="k">BT Connected  (idx 16)</span><span class="v" id="d-bt-on">—</span></div>
+            <div class="dev-row"><span class="k">BT Disconn.   (idx 17)</span><span class="v" id="d-bt-off">—</span></div>
+            <hr class="dev-sep">
+            <div class="dev-row"><span class="k">Calm Score</span>        <span class="v" id="d-calm">—</span></div>
+            <div class="dev-row"><span class="k">Calib Progress</span>    <span class="v" id="d-calib">—</span></div>
+            <div class="dev-log" id="dev-log"></div>
+        </div>
+    </div>
+
+    <!-- END ────────────────────────────────────────────────── -->
+    <div id="view-end" class="view">
+        <div class="end-card">
+            <h1 class="end-title">SESSION COMPLETE</h1>
+            <p class="end-sub">Biometric data has been synchronized successfully.</p>
+            <p class="end-note">Remove the headset.</p>
+            <button id="btn-restart">NEW SESSION</button>
+        </div>
+    </div>
+
+</div>
+
+<script type="module">
+import { MuseClient } from './vendor/muse-js.bundle.js';
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+const TARGET_CALIBRATION_SAMPLES = 300;  // 15 s at 50 ms
+const MA_WINDOW = 115;
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let appState   = 'DISCONNECTED';
+let museClient = null;
+let intervalId = null;
+let eegWatchdog = null;
+let sensorActive = 0;
+
+let rawAlpha = 0.5, rawBeta = 0.5, rawGamma = 0.1, rawTheta = 0.3, rawDelta = 0.3;
+let currentBpm = 75;
+let currentGyro  = [0, 0, 0];
+let currentAccel = [0, 0, 0];
+let dynamicAlphaEma = 0.05;
+
+let calibrationData  = [];
+let baselinePromedio = 0;
+let baselineStdDev   = 0.0001;
+let calibrationProgress  = 0;
+let lastNCampsScores = [];
+let smoothedCalmScore = 0;
+let calmFinal = 0;
+let calibTriggerFired = false;
+let headsetName = 'Muse';
+let warmupStartTime = 0;
+let calibResetTimerId = null;
+let calibProgressLocked = false;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const smooth = (prev, target, alpha) => prev + alpha * (target - prev);
+
+function devLog(msg) {
+    const el = document.getElementById('dev-log');
+    if (!el) return;
+    const line = document.createElement('div');
+    line.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+}
+
+function setAppState(s) {
+    appState = s;
+    const el = document.getElementById('d-state');
+    if (el) el.textContent = s;
+}
+
+// ── View transitions ──────────────────────────────────────────────────────────
+function showView(id) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    setTimeout(() => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('active');
+        if (id === 'view-dash') initChart();
+    }, 400);
+}
+
+// ── WebSocket relay ───────────────────────────────────────────────────────────
+let ws = null;
+
+function initRelay() {
+    if (ws) { try { ws.close(); } catch(e) {} }
+    ws = new WebSocket('ws://localhost:3000');
+
+    ws.onopen = () => {
+        devLog('[WS] Connected to relay');
+        document.getElementById('ws-dot').classList.add('live');
+        document.getElementById('ws-label').textContent = 'Relay connected';
+    };
+
+    ws.onmessage = (e) => {
+        try {
+            const msg = JSON.parse(e.data);
+            if (msg.type === 'config_sync') {
+                document.getElementById('inp-ip').value   = msg.ip;
+                document.getElementById('inp-port').value = msg.port;
+            } else if (msg.type === 'unreal_command' && msg.command === 'end_session') {
+                document.getElementById('btn-end').click();
+            }
+        } catch(err) {}
+    };
+
+    ws.onclose = () => {
+        devLog('[WS] Relay offline — retrying…');
+        document.getElementById('ws-dot').classList.remove('live');
+        document.getElementById('ws-label').textContent = 'Relay offline';
+        setTimeout(initRelay, 3000);
+    };
+
+    ws.onerror = () => {};
+}
+
+// ── Telemetry broadcast ───────────────────────────────────────────────────────
+function broadcastFullTelemetry(calmScore) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+    const ip   = document.getElementById('inp-ip').value.trim();
+    const port = parseInt(document.getElementById('inp-port').value) || 8000;
+
+    // One-shot calib_completed pulse on first RUNNING tick
+    let outCalibCompleted = 0.0;
+    if (appState === 'RUNNING' && !calibTriggerFired) {
+        outCalibCompleted = 1.0;
+        calibTriggerFired = true;
+    } else if (appState !== 'RUNNING') {
+        calibTriggerFired = false;
+    }
+
+    // BT status derived from appState — immune to connectionStatus race condition
+    const _btOn = (appState === 'WARMUP' || appState === 'CALIBRATING' || appState === 'RUNNING') ? 1 : 0;
+
+    // Update dev panel
+    document.getElementById('d-bt-on').textContent  = _btOn;
+    document.getElementById('d-bt-off').textContent = 1 - _btOn;
+    document.getElementById('d-bt-on').className  = 'v ' + (_btOn ? 'on' : 'off');
+    document.getElementById('d-bt-off').className = 'v ' + (!_btOn ? 'on' : 'off');
+    document.getElementById('d-calm').textContent  = calmScore.toFixed(3);
+    document.getElementById('d-calib').textContent = (calibrationProgress * 100).toFixed(1) + '%';
+    document.getElementById('d-sens').textContent  = sensorActive;
+
+    ws.send(JSON.stringify({
+        type: 'full_telemetry',
+        oscIp: ip, oscPort: port,
+        sensorOn:   _btOn,
+        sensorActive: sensorActive,
+        gyro: currentGyro, accel: currentAccel,
+        alpha: rawAlpha, beta: rawBeta, gamma: rawGamma,
+        theta: rawTheta, delta: rawDelta,
+        calm: calmScore, bpm: currentBpm,
+        calibProgress:   calibrationProgress,
+        calm_final:      calmFinal,
+        calib_completed: outCalibCompleted,
+        headset_id: headsetName
+    }));
+}
+
+// ── Chart ─────────────────────────────────────────────────────────────────────
+let bioChart = null;
+
+function initChart() {
+    const canvas = document.getElementById('bio-chart');
+    if (!canvas) return;
+    if (bioChart) { bioChart.destroy(); bioChart = null; }
+    bioChart = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                { label: 'BPM', data: [], borderColor: '#e71d36', fill: false, borderWidth: 2, pointRadius: 0, tension: 0.1 },
+                { label: 'Calm [0–1]', data: [], borderColor: '#2ec4b6', fill: false, borderWidth: 2, pointRadius: 0, tension: 0 }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            animation: { duration: 0 },
+            scales: {
+                x: { display: false },
+                y: {
+                    display: true, position: 'right',
+                    grid: { color: 'rgba(253,255,252,0.05)' },
+                    ticks: { color: '#8492A6', font: { family: "'Space Mono',monospace", size: 9 } }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top', align: 'end',
+                    labels: { color: '#FDFFFC', font: { family: "'Space Mono',monospace", size: 10 }, usePointStyle: true, boxWidth: 6 }
+                }
+            }
+        }
+    });
+}
+
+function pushChart(bpm, calm) {
+    if (!bioChart) return;
+    bioChart.data.labels.push('');
+    bioChart.data.datasets[0].data.push(bpm);
+    bioChart.data.datasets[1].data.push(calm);
+    if (bioChart.data.labels.length > 600) {
+        bioChart.data.labels.shift();
+        bioChart.data.datasets.forEach(d => d.data.shift());
+    }
+    bioChart.update();
+}
+
+// ── Visuals ───────────────────────────────────────────────────────────────────
+const sphere   = document.getElementById('sphere');
+const valBpm   = document.getElementById('val-bpm');
+const valCalm  = document.getElementById('val-calm');
+const valState = document.getElementById('val-state');
+
+function updateVisuals(bpm, calm) {
+    if (valBpm)  valBpm.textContent  = Math.round(bpm);
+    if (valCalm) valCalm.textContent = calm.toFixed(3);
+    if (calm > 0.7) {
+        if (valState) valState.textContent = 'DEEP CALM';
+        sphere.style.background = 'var(--aura-calm)';
+        sphere.style.filter = 'blur(70px)';
+        sphere.style.animationDuration = '6s';
+    } else if (calm < 0.3) {
+        if (valState) valState.textContent = 'BASIC TENSION';
+        sphere.style.background = 'var(--aura-stress)';
+        sphere.style.filter = 'blur(25px)';
+        sphere.style.animationDuration = '1.5s';
+    } else {
+        if (valState) valState.textContent = 'TUNING';
+        sphere.style.background = 'var(--aura-neutral)';
+        sphere.style.filter = 'blur(50px)';
+        sphere.style.animationDuration = '4s';
+    }
+    pushChart(bpm, calm);
+}
+
+// ── Muse connect ──────────────────────────────────────────────────────────────
+async function connectMuse() {
+    const btn = document.getElementById('btn-connect');
+
+    try {
+        if (!navigator.bluetooth) {
+            alert('Web Bluetooth not supported — use Chrome or Edge.');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = 'CONNECTING…';
+        setAppState('CONNECTING');
+
+        museClient = new MuseClient();
+        await museClient.connect();
+        await museClient.start();
+
+        headsetName = museClient.deviceName || 'Muse';
+        devLog('Connected: ' + headsetName);
+
+        // Reset calibration state
+        calibrationData   = [];
+        calibrationProgress  = 0;
+        lastNCampsScores  = [];
+        smoothedCalmScore = 0;
+        calmFinal         = 0;
+        calibTriggerFired = false;
+        dynamicAlphaEma   = 0.05;
+        if (calibResetTimerId) { clearTimeout(calibResetTimerId); calibResetTimerId = null; }
+        calibProgressLocked = false;
+
+        showView('view-calib');
+        document.getElementById('calib-bar').style.width = '0%';
+        document.getElementById('calib-pct').textContent = '0%';
+
+        // IMPORTANT: subscribe BEFORE setAppState so any synchronous
+        // BehaviorSubject emission of `false` gets immediately overridden
+        // by setAppState('WARMUP') below — same pattern as admin panel.
+        museClient.connectionStatus.subscribe(status => {
+            if (!status) {
+                sensorActive = 0;
+                devLog('[BT] Link lost — keep-alive started');
+                btn.textContent = 'RECONNECT MUSE';
+                btn.disabled = false;
+                if (intervalId) { clearInterval(intervalId); intervalId = null; }
+                setAppState('DISCONNECTED');
+                // Keep broadcasting so Unreal receives idx16=0, idx17=1 stably
+                intervalId = setInterval(() => broadcastFullTelemetry(0.0), 100);
+            }
+        });
+
+        // 2-second warmup before calibration begins. BT idx16=1 is already
+        // streaming so Unreal sees the connection, but the progress bar holds.
+        setAppState('WARMUP');
+        warmupStartTime = Date.now();
+        document.querySelector('#view-calib .calib-sub').textContent = 'Stabilizing signal...';
+
+        // Clear any prior keep-alive before starting session interval
+        if (intervalId) { clearInterval(intervalId); intervalId = null; }
+
+        intervalId = setInterval(() => {
+            const currentRatio = rawAlpha / (rawBeta + 0.4 * rawGamma + 0.001);
+
+            if (appState === 'WARMUP') {
+                const elapsed = Date.now() - warmupStartTime;
+                if (elapsed >= 2000) {
+                    setAppState('CALIBRATING');
+                    document.querySelector('#view-calib .calib-sub').textContent = 'Computing Z-Score Mapping…';
+                } else {
+                    document.querySelector('#view-calib .calib-sub').textContent =
+                        `Stabilizing signal... ${((2000 - elapsed) / 1000).toFixed(1)}s`;
+                }
+                broadcastFullTelemetry(0.0);
+                return;
+            }
+
+            if (appState === 'CALIBRATING') {
+                if (sensorActive === 0) {
+                    broadcastFullTelemetry(0.0);
+                    return;
+                }
+                calibrationData.push(currentRatio);
+                calibrationProgress = Math.min(1, calibrationData.length / TARGET_CALIBRATION_SAMPLES);
+
+                const pct = Math.round(calibrationProgress * 100);
+                document.getElementById('calib-bar').style.width = pct + '%';
+                document.getElementById('calib-pct').textContent = pct + '%';
+
+                if (calibrationData.length >= TARGET_CALIBRATION_SAMPLES) {
+                    baselinePromedio = calibrationData.reduce((a, b) => a + b, 0) / calibrationData.length;
+                    const variance   = calibrationData.reduce((a, b) => a + Math.pow(b - baselinePromedio, 2), 0) / calibrationData.length;
+                    baselineStdDev   = Math.max(Math.sqrt(variance), 0.0001);
+                    devLog('Baseline: ' + baselinePromedio.toFixed(3) + ' ± ' + baselineStdDev.toFixed(3));
+                    setAppState('RUNNING');
+                    showView('view-dash');
+
+                    if (calibResetTimerId) clearTimeout(calibResetTimerId);
+                    calibProgressLocked = false;
+                    calibResetTimerId = setTimeout(() => {
+                        calibProgressLocked = true;
+                        devLog('Calib OSC reset → 0 (5s post-calibration)');
+                    }, 5000);
+                }
+                broadcastFullTelemetry(0.0);
+
+            } else if (appState === 'RUNNING') {
+                calibrationProgress = calibProgressLocked ? 0.0 : 1.0;
+                let zScore = Math.min(Math.max((currentRatio - baselinePromedio) / baselineStdDev, -2.0), 2.0);
+                let normalizedScore = (zScore + 2.0) / 4.0;
+                lastNCampsScores.push(normalizedScore);
+                if (lastNCampsScores.length > MA_WINDOW) lastNCampsScores.shift();
+                smoothedCalmScore = lastNCampsScores.reduce((a, b) => a + b, 0) / lastNCampsScores.length;
+
+                if (sensorActive === 1) {
+                    calmFinal = smooth(calmFinal, smoothedCalmScore > 0.7 ? 1 : 0, 0.01);
+                }
+
+                updateVisuals(currentBpm, smoothedCalmScore);
+                broadcastFullTelemetry(smoothedCalmScore);
+            }
+        }, 50);
+
+        // EEG readings → raw band proxies
+        museClient.eegReadings.subscribe(reading => {
+            clearTimeout(eegWatchdog);
+            const samples = reading.samples;
+            if (!samples || samples.length === 0) return;
+            const avgPower = samples.reduce((acc, v) => acc + Math.abs(v), 0) / samples.length;
+            if (avgPower >= 1.0) sensorActive = 1;
+            rawAlpha = smooth(rawAlpha, (avgPower * 0.10) % 1.0, dynamicAlphaEma);
+            rawBeta  = smooth(rawBeta,  (avgPower * 0.20) % 1.0, 0.05);
+            rawTheta = smooth(rawTheta, (avgPower * 0.15) % 1.0, 0.05);
+            rawDelta = smooth(rawDelta, (avgPower * 0.05) % 1.0, 0.05);
+            rawGamma = (avgPower > 400) ? 1.0 : smooth(rawGamma, 0.1, 0.05);
+            currentBpm = smooth(currentBpm, 70 + (avgPower % 30), 0.01);
+            eegWatchdog = setTimeout(() => { sensorActive = 0; }, 800);
+        });
+
+        museClient.gyroscopeData.subscribe(reading => {
+            if (reading.samples.length > 0) {
+                const s = reading.samples[reading.samples.length - 1];
+                currentGyro[0] = smooth(currentGyro[0], s.x, 0.2);
+                currentGyro[1] = smooth(currentGyro[1], s.y, 0.2);
+                currentGyro[2] = smooth(currentGyro[2], s.z, 0.2);
+            }
+        });
+
+        museClient.accelerometerData.subscribe(reading => {
+            if (reading.samples.length > 0) {
+                const s = reading.samples[reading.samples.length - 1];
+                currentAccel[0] = smooth(currentAccel[0], s.x, 0.2);
+                currentAccel[1] = smooth(currentAccel[1], s.y, 0.2);
+                currentAccel[2] = smooth(currentAccel[2], s.z, 0.2);
+                const mag = Math.sqrt(s.x*s.x + s.y*s.y + s.z*s.z);
+                dynamicAlphaEma = mag > 1.2 ? 0.01 : 0.05;
+            }
+        });
+
+    } catch(e) {
+        console.error('[Muse] Error:', e);
+        devLog('[ERROR] ' + e.message);
+        setAppState('DISCONNECTED');
+        btn.textContent = 'ERROR — RETRY';
+        btn.disabled = false;
+    }
+}
+
+// ── Disconnect ────────────────────────────────────────────────────────────────
+function disconnectMuse() {
+    if (intervalId) { clearInterval(intervalId); intervalId = null; }
+    if (calibResetTimerId) { clearTimeout(calibResetTimerId); calibResetTimerId = null; }
+    calibProgressLocked = false;
+    sensorActive = 0;
+    setAppState('DISCONNECTED');
+
+    if (museClient) {
+        try { museClient.disconnect(); } catch(e) {}
+        museClient = null;
+    }
+
+    devLog('Session ended — keep-alive started (idx16=0, idx17=1)');
+    // Keep broadcasting disconnected state so Unreal receives stable BT=0 values
+    intervalId = setInterval(() => broadcastFullTelemetry(0.0), 100);
+}
+
+// ── Events ────────────────────────────────────────────────────────────────────
+document.getElementById('btn-connect').addEventListener('click', connectMuse);
+
+document.getElementById('btn-end').addEventListener('click', () => {
+    disconnectMuse();
+    showView('view-end');
+});
+
+document.getElementById('btn-restart').addEventListener('click', () => {
+    if (intervalId) { clearInterval(intervalId); intervalId = null; }
+    window.location.reload();
+});
+
+document.getElementById('btn-osc-toggle').addEventListener('click', () => {
+    document.getElementById('osc-fields').classList.toggle('open');
+});
+
+document.getElementById('dev-toggle').addEventListener('click', () => {
+    document.getElementById('dev-panel').classList.toggle('hidden');
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+initRelay();
+</script>
+</body>
+</html>

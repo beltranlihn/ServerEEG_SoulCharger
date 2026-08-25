@@ -1,0 +1,30 @@
+# --- Dependencias ---
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# --- SDK propietario de Muse (1.1 GB de binarios) ---
+# Descargar desde el portal de desarrolladores de Muse y descomprimir en SDK/
+# Ver README.md > "Requisitos externos"
+SDK/
+
+# --- Basura de macOS / Windows ---
+.DS_Store
+**/.DS_Store
+__MACOSX/
+Thumbs.db
+desktop.ini
+
+# --- Datos generados por sesiones EEG (capturas y exports) ---
+research/
+sesion_*.png
+sesion_*.csv
+sesion_*.json
+
+# --- Artefactos accidentales ---
+127.0.0.1
+
+# --- Entorno ---
+.env
+.env.*
+!.env.example
