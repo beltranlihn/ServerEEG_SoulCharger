@@ -1,22 +1,39 @@
 # Soul Charger - Muse OSC Relay
 
-Este repositorio contiene la integración entre una diadema Muse (vía Web Bluetooth en el Frontend) y Unreal Engine (vía OSC UDP en el Backend Node.js).
+Integración entre una diadema **Muse 2** (vía Web Bluetooth en el navegador) y **Unreal Engine** / TouchDesigner (vía OSC UDP desde un relay Node.js). Todo corre en local.
+
+```
+Muse 2 ──Web Bluetooth──> Navegador ──WebSocket:3000──> Node.js relay ──OSC/UDP:8000──> Unreal
+```
 
 ## Estructura de la Aplicación
-- **/frontend**: Aplicación web que captura las lecturas EEG por Bluetooth, calcula el algoritmo de calma y las envía por WebSocket al backend.
-- **/backend**: Servidor Node.js (WebSocket a UDP/OSC Relay) que recibe la telemetría web y la reenvía como OSC a Unreal Engine en un puerto local.
+- **`soul-charger-admin.html`**: panel de operador y aplicación principal. Captura el EEG por Bluetooth, calcula el Calm Score y lo envía por WebSocket al backend. Es autocontenido (HTML + CSS + JS inline).
+- **`soul-charger-app.html`**: vista de participante, versión de un solo usuario.
+- **`vendor/`**: dependencias servidas de forma local (Chart.js, muse-js, tipografías). Sin CDN, para funcionar offline en eventos.
+- **`backend/`**: servidor Node.js que hace de servidor HTTP estático y de relay WebSocket → UDP/OSC hacia Unreal Engine.
+- **`hardware/Source/`**: integración nativa en C++ para Unreal (vía alternativa, no la usa la app web).
 
 ## Guía de Inicio
 
-### Backend (Relay OSC)
+La forma rápida en Windows es ejecutar **`Iniciar Soul Charger.bat`**: libera los puertos, arranca el relay y abre el panel en Chrome o Edge.
+
+Manualmente:
+
 ```bash
 cd backend
 npm install
 npm start
 ```
-El servidor inicia en `localhost:3000` (para el WebSocket del Frontend) y enviará OSC hacia la IP/Puerto definidos (por defecto `127.0.0.1:8000`).
 
----
+Luego abre <http://localhost:5500/soul-charger-admin.html>.
+
+> **Web Bluetooth solo funciona en Chrome o Edge.** Firefox y Safari no lo soportan.
+
+| Puerto | Uso |
+|---|---|
+| `5500` | Servidor HTTP estático (sirve los HTML y `vendor/`). |
+| `3000` | WebSocket entre el navegador y el relay. |
+| `8000` | Destino OSC/UDP hacia Unreal (por defecto `127.0.0.1:8000`, configurable desde la UI). |
 
 ## Requisitos externos (no versionados)
 
