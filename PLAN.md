@@ -7,6 +7,28 @@ hizo.
 
 ---
 
+## R1 · La red de sondas — 2026-08-30 — `probe-osc` que sabe fallar
+
+Segunda ronda de `docs/NEXT.md`. Instala la verificación **antes** de tocar código de señal: sin una forma de medir, el sistema nuevo se escribiría a ciegas (así se llegó al Calm Score que lleva meses sin medir calma, H1).
+
+**Qué se hizo.**
+
+1. **Lanzador único `npm run probe`** (`scratchpad/run-probes.js`): arranca un relay **aislado en puertos de test** (WS 3999 / HTTP 5599) para no interferir con la instalación del operador, corre todas las sondas y sale con código ≠0 si alguna falla.
+2. **`probe-osc`** (`scratchpad/probe-osc.js`): conduce el relay real —le inyecta una trama `full_telemetry` por WebSocket— y valida lo que **emite por UDP**: direcciones, tipos y rangos. Mide la **conclusión** (lo que Unreal recibiría), no la premisa.
+3. **`backend/server.js`**: puertos de escucha configurables por entorno (`RELAY_WS_PORT` / `RELAY_HTTP_PORT`, default 3000/5500). Cambio mínimo y retrocompatible que hace la sonda hermética.
+
+**Medido — la sonda sabe fallar.** Ejecutada contra el código actual (`npm run probe`), sale en **rojo con código 1**, y falla justo donde tiene que fallar:
+- **Verde (contrato actual):** `/muse/data` llega, 18 args, todos `f`, idx13 calm = 0.5 en rango, idx16/17 complementarios (6 comprobaciones).
+- **Rojo (contrato R4, aún inexistente):** no llega `/muse/heart_rate` (f), no existe `/muse/sensor_active` (i), y el pulso viaja como `0.0` en idx14 (H2).
+
+Se descubrió y sorteó un detalle real del relay: al fijar un puerto OSC nuevo, `initUDP()` reabre el socket de forma asíncrona y **pierde el primer envío**; por eso la sonda manda varias tramas espaciadas en vez de una (una sola daba un falso negativo del contrato actual).
+
+**Sin verificar.** La sonda se probó contra el relay, no contra Unreal ni una diadema física; eso es correcto por diseño (una sonda corre sin ninguno de los dos). Las demás sondas del catálogo (`probe-bands`, `probe-dropout`, `probe-csv`, `probe-inbound`, `probe-calm`) se crean en sus rondas respectivas.
+
+**Siguiente paso.** Depende del camino que elija el director (A o B en `docs/NEXT.md`). En cualquiera, la próxima es R2 (persistir la IP de la gafa) o R7/R8 (señal real).
+
+---
+
 ## R0 · Orden documental — 2026-08-30 — Fusión de plantillas y relleno del mapa
 
 Primera ronda de `docs/NEXT.md`. **No toca código de la aplicación**; deja la documentación lista para trabajar. Todo verificado contra el análisis de traspaso y el código, no contra documentación previa.

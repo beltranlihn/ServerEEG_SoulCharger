@@ -1,0 +1,8 @@
+{
+  "name": "soul-charger-probes",
+  "private": true,
+  "description": "Lanzador de sondas de verificacion (npm run probe). Ver docs/NEXT.md R1 y METODO.md.",
+  "scripts": {
+    "probe": "node scratchpad/run-probes.js"
+  }
+}

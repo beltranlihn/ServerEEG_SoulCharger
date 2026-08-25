@@ -51,6 +51,13 @@ Los números de línea orientan, no son exactos: verificar el símbolo por búsq
 | Contador de usuarios | `soulcharger_users`: sube al conectar y al simular; poco fiable | `soul-charger-admin.html:1480, 1588` | ⚠️ | H3, R6 |
 | Exportación PNG | Guarda gráficas como imagen (no hay tabla de texto) | `soul-charger-admin.html:1308` → `server.js:136-152` | 🚧 falta CSV | H5, R5 |
 
+### 6 · Verificación (sondas) — `scratchpad/`
+| Componente | Qué hace | Ubicación | Estado | Ticket |
+|---|---|---|---|---|
+| Lanzador de sondas | `npm run probe`: arranca un relay aislado (WS 3999 / HTTP 5599) y corre todas las sondas; sale ≠0 si alguna falla | `scratchpad/run-probes.js` | ✅ | R1 |
+| `probe-osc` | Conduce el relay (inyecta `full_telemetry`) y valida el OSC emitido: direcciones, tipos, rangos. **Sabe fallar:** hoy en rojo por H2/contrato R4 | `scratchpad/probe-osc.js` | ✅ | R1 |
+| Puerto del relay configurable | `RELAY_WS_PORT` / `RELAY_HTTP_PORT` (default 3000/5500) para arrancar un relay de test aislado | `backend/server.js:8, 45` | ✅ | R1 |
+
 ### 5 · Integración Unreal / motor gráfico
 | Componente | Qué hace | Ubicación | Estado | Ticket |
 |---|---|---|---|---|

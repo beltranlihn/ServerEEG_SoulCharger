@@ -5,7 +5,9 @@ const path = require("path");
 const http = require("http");
 
 // ── Static file server (port 5500) ─────────────────────────────────────────
-const STATIC_PORT = 5500;
+// [R1] Puertos configurables por entorno para que las sondas arranquen un relay
+// aislado sin chocar con la instalacion del operador. Por defecto, 5500 / 3000.
+const STATIC_PORT = Number(process.env.RELAY_HTTP_PORT) || 5500;
 const STATIC_ROOT = path.join(__dirname, "..");
 const MIME_TYPES = {
     ".html": "text/html; charset=utf-8",
@@ -42,7 +44,8 @@ http.createServer((req, res) => {
     console.log(`[HTTP] Admin URL:     http://localhost:${STATIC_PORT}/soul-charger-admin.html`);
 });
 
-const wss = new WebSocket.Server({ port: 3000 });
+const WS_PORT = Number(process.env.RELAY_WS_PORT) || 3000;
+const wss = new WebSocket.Server({ port: WS_PORT });
 
 console.log("");
 console.log("╔══════════════════════════════════════════════════════════════╗");
