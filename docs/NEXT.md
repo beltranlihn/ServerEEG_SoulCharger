@@ -21,7 +21,8 @@ sistema de trabajo de Alma Digital Studio. **No se ha escrito código nuevo toda
 1. `METODO.md` — las reglas. No son opcionales; cada una nació de un fallo concreto.
 2. `docs/historial/2026-08-25-analisis-para-traspaso.md` — **el documento importante.** Contiene los nueve
    hallazgos de la lectura del código, con `fichero:línea`. Todas las entradas de esta cola remiten a él
-   como `H1`…`H9`.
+   como `H1`…`H9`. **Su sección 5** es la investigación sobre qué medir para hablar de calma, con la mezcla
+   de señales propuesta y el protocolo para demostrar que el número responde a algo.
 3. `CLAUDE.md` — el contrato: puertos, contrato OSC, algoritmo, trampas.
 
 **El siguiente paso es la Ronda 0.** No empezar por el encargo nuevo: primero el orden documental, y
@@ -41,9 +42,14 @@ incluye 75 sesiones fabricadas (H3). No son fallos de transporte; son fallos de 
 
 | | **Camino A — entregar antes** | **Camino B — validez antes** |
 |---|---|---|
-| Orden | R0 → R1 → R2 → R3 → R4 → R5 → R6 → R7 → R8 | R0 → R1 → R7 → R8 → luego el resto |
-| Qué se consigue pronto | Un sistema completo, verificable y ordenado, que transporta y registra bien | Datos que miden de verdad lo que dicen |
+| Orden | R0 → R1 → R2 → R3 → R4 → R5 → R6 → R7 → R8 → R11 | R0 → R1 → R7 → R8 → R11 → luego el resto |
+| Qué se consigue pronto | Un sistema completo, verificable y ordenado, que transporta y registra bien | Un índice de calma que se puede defender |
 | Qué se asume | Durante un tiempo se registra y se envía un Calm Score y un pulso que no son válidos. Las filas quedan marcadas y se pueden descartar después | La instalación tarda más en tener CSV, IP persistente y recuperación ante caídas |
+
+En los dos casos **R11 es el final de la cadena**: es la ronda que define qué se mide cuando se dice «calma» y
+lo demuestra. R7 y R8 son sus prerrequisitos —le dan pulso y bandas de verdad—, pero por sí solos no producen
+un índice defendible. La ADR de D8 y el protocolo de validación se pueden escribir en cualquier momento,
+porque son decisión y diseño, no código.
 
 **Recomendación:** camino A **si hay una fecha de exhibición cerca**, porque R2–R6 son los que hacen que la
 instalación no se rompa en vivo; camino B si lo próximo es publicar o defender resultados. Es una decisión del
@@ -142,8 +148,12 @@ Es la ronda que más protege la instalación en vivo.
       `research/` y sobrevive al cierre del navegador.
 - [ ] CSV por sesión, una fila por tick, con: marca de tiempo, panel, `headsetName`, número de participante,
       estado, calma, pulso, `sensorActive`, progreso de calibración, bandas y **origen del dato**.
+- [ ] Dejar sitio desde ya para lo que pedirá R11, aunque se rellene más tarde: los **subíndices** (alfa
+      relativa, beta relativa, RMSSD), el **estado de la puerta de calidad** y `calm_index_version`. Con un
+      solo número compuesto no se puede averiguar después por qué se movió, y sin versión las sesiones dejan
+      de ser comparables en cuanto cambie la fórmula.
 - [ ] Índice acumulado con una fila por sesión: inicio, duración, participante, delta de calma, porcentaje de
-      la sesión con datos reales.
+      la sesión con datos reales y **porcentaje de ventanas válidas**.
 - [ ] Sanear `player` y `suffix` al construir el nombre de fichero (`backend/server.js:140`), que hoy se
       interpolan sin validar mientras el servidor estático sí valida su ruta (`:28`).
 - [ ] **`probe-csv`**: ejecutar una sesión sintética y **abrir el CSV**, contando filas y validando cabeceras.
@@ -196,6 +206,9 @@ direcciones. Hacerlo mucho más tarde obliga a renegociar el contrato con la gaf
 
 - [ ] Activar el PPG del Muse 2: `enablePpg` y `ppgReadings` ya están en `vendor/muse-js.bundle.js`.
 - [ ] Implementar la detección de latido y el cálculo de pulso en bpm sobre la señal PPG.
+- [ ] Extraer también la **serie de intervalos entre latidos**, no sólo el bpm medio: es la materia prima del
+      RMSSD, que es el eje autonómico del índice de calma (R11). Rechazar intervalos imposibles —fuera de
+      300–2000 ms, o con un salto mayor del 20 % respecto al anterior— antes de acumularlos.
 - [ ] **Retirar** `currentBpm = smooth(currentBpm, 70 + (avgPower % 30), 0.01)` de los dos ficheros, y
       archivarlo en `_backup/deprecated/` con su encabezado.
 - [ ] Manejar el caso «sin señal PPG válida»: enviar el último valor sano o marcarlo, nunca un número
@@ -205,11 +218,19 @@ direcciones. Hacerlo mucho más tarde obliga a renegociar el contrato con la gaf
 
 ### R8 · Bandas EEG reales — H1
 
-La ronda que da validez a todo lo demás. Leer H1 entero antes de empezar.
+La base de todo lo demás: da la materia prima que R11 compone. Leer H1 entero, y la sección 5.4 del análisis
+para el detalle del cálculo.
 
 - [ ] Decidir D2: FFT propia sobre `eegReadings` o librería de procesado. Anotar el coste en CPU y latencia.
-- [ ] Implementar la descomposición espectral real: delta, theta, alfa, beta, gamma por canal.
-- [ ] Recalcular el Calm Score sobre la relación alfa/beta de verdad.
+- [ ] **Separar por electrodo.** Acumular en un búfer por canal usando el campo `electrode`, que hoy se ignora
+      (H1, punto 3): ahora mismo TP9, AF7, AF8 y TP10 caen mezclados en la misma variable.
+- [ ] Ventana de 2 s con solape del 75 % (512 muestras a 256 Hz, avance de 128), ventana de Hann y FFT.
+      Resolución de 0,5 Hz y una actualización cada 500 ms.
+- [ ] Bandas: delta 1–4, theta 4–8, alfa 8–13, beta 13–30, y 30–45 **sólo para detectar EMG**, no como
+      «gamma» sumable.
+- [ ] Potencias **relativas** sobre el total 1–40 Hz, y logaritmo. **Sin módulo**: el `% 1.0` es el origen de
+      los saltos de 0,99 a 0,00.
+- [ ] Promediar alfa y beta entre TP9 y TP10, que son los menos contaminados por parpadeo.
 - [ ] **Retirar** las pseudo-bandas `(avgPower * k) % 1.0` de los dos ficheros y archivarlas.
 - [ ] Revisar si `TARGET_CALIBRATION_SAMPLES = 300` y `MA_WINDOW = 115` siguen teniendo sentido con una señal
       que ya no da saltos por el módulo.
@@ -217,6 +238,69 @@ La ronda que da validez a todo lo demás. Leer H1 entero antes de empezar.
       correcto los distingue; el actual da lo mismo en ambos casos. Verificar que la sonda caza el código
       viejo antes de darla por buena.
 - [ ] Revisar `sensorActive` (H8): `avgPower >= 1.0` no mide contacto con la piel.
+
+### R11 · El índice de calma: definirlo y demostrar que mide algo — encargo del director
+
+**Leer la sección 5 completa del análisis antes de empezar.** Es la ronda que da sentido al proyecto: sin
+ella, R7 y R8 sólo producen bandas y pulso correctos sin nada que los combine con criterio.
+
+El encargo del director es que el índice **tenga coherencia**, sabiendo que la calma no es una onda concreta.
+La respuesta es tratarla como una **definición operativa**: una fórmula fija, publicada y versionada, que
+responde de forma reproducible a maniobras que sabemos que relajan o activan. No hace falta que sea
+«verdadera»; hace falta que sea consistente, sensible y declarada.
+
+Depende de R7 (PPG real) y R8 (bandas reales). La ADR y el protocolo se pueden escribir antes.
+
+**Definir**
+
+- [ ] **Escribir la ADR de D8 antes de programar.** Es la decisión más cara de revertir del proyecto: una vez
+      publicados resultados, cambiar la fórmula invalida lo anterior.
+- [ ] Fijar los dos ejes: **cortical** `z(log alfa_rel) − z(log beta_rel)` sobre TP9/TP10, y **autonómico**
+      `z(log RMSSD)` desde el PPG. Dos vías fisiológicas independientes que coinciden valen mucho más que una.
+- [ ] Pesos iniciales 0,6 cortical / 0,4 autonómico, **configurables y registrados en cada sesión**. El valor
+      correcto sale de las pruebas, no de la intuición.
+- [ ] **No incluir la asimetría alfa frontal.** Mide valencia afectiva, no calma, y está discutida.
+- [ ] Decidir qué hacer con theta: sirve para **detectar somnolencia y marcarla**, no para sumarla a la calma.
+
+**Construir**
+
+- [ ] Potencias **relativas** (banda / total 1–40 Hz) y **logaritmo** antes de promediar. **Restar** logaritmos
+      en vez de dividir bandas: la división explota cuando el denominador tiende a cero.
+- [ ] **Puerta de validez** antes de todo: contacto, EMG por encima de 30 Hz, parpadeo frontal y movimiento
+      del acelerómetro. Las ventanas malas **se descartan, no se corrigen**, y el índice conserva el último
+      valor bueno marcando la muestra como retenida.
+- [ ] RMSSD sobre ventana deslizante de 60 s, con rechazo de intervalos imposibles. Por debajo de 30 s la
+      estimación no es estable: decirlo en vez de mostrar un número que baila.
+- [ ] Revisar la duración de la calibración: los 15 s actuales son cortos para el eje autonómico, que pide
+      60 s o más. Es una decisión de diseño, no un detalle.
+- [ ] Conservar lo que ya está bien: baseline por participante, z-score, máquina de estados y suavizado.
+
+**Demostrar — es el entregable de verdad**
+
+- [ ] Ejecutar el protocolo de la sección 5.5 con al menos 5 personas. Se hace en el estudio, sin laboratorio.
+- [ ] **Prueba A, ojos cerrados frente a abiertos.** Es la decisiva: el efecto Berger es grande y fiable, y
+      **si el índice no separa esto, no mide estado cortical y no hay nada que discutir**.
+- [ ] **Prueba B**, respiración a 6 por minuto frente a cálculo mental, para el eje autonómico.
+- [ ] **Prueba C**, repetición a dos días, para saber si los participantes son comparables entre sí.
+- [ ] **Prueba D**, artefactos provocados: apretar la mandíbula, parpadear, mover la cabeza. El índice no debe
+      moverse. Es el fallo más probable con público delante.
+- [ ] Ajustar los pesos maximizando la separación entre condiciones. Si el eje autonómico no aporta, se le
+      baja el peso **y se dice**.
+- [ ] Informar con **tamaño del efecto**, no con impresiones: «d = 1,4; separa en 9 de 10 repeticiones».
+- [ ] Guardar las grabaciones etiquetadas como corpus de regresión y montar **`probe-calm`**, que las
+      reproduce y exige una separación mínima. Mientras ese corpus no exista, **el índice no está verificado y
+      se dice así**, no se cierra por comodidad.
+
+**Que el dato siga siendo defendible dentro de seis meses**
+
+- [ ] `calm_index_version` y los pesos en cada sesión del CSV. Si la fórmula cambia, las sesiones viejas no
+      son comparables y hay que poder saberlo sin adivinar.
+- [ ] Guardar los **subíndices** además del compuesto: alfa relativa, beta relativa, RMSSD y el estado de la
+      puerta de calidad. Con un solo número no se puede averiguar después por qué se movió.
+- [ ] Registrar el **porcentaje de ventanas válidas** de cada sesión. Una sesión con el 30 % rechazado no vale
+      lo mismo que una con el 95 %, y hoy no hay forma de distinguirlas.
+- [ ] Actualizar `CLAUDE.md` con la definición vigente del índice, sustituyendo la descripción del algoritmo
+      actual.
 
 ### R9 · Un solo pipeline — H7
 

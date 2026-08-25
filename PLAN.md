@@ -60,6 +60,10 @@ puntos abiertos están al final de `docs/NEXT.md`.
   ninguna ronda. Lo único que se pide es no volver a clavar el número dos.
 - Habrá **sincronización bidireccional con la gafa** —el relay envía y recibe—, con el uso todavía sin
   definir. Se planifica el transporte (R10) sin inventar mensajes.
+- El objetivo del proyecto es **medir estado de calma con coherencia**, asumiendo que la calma no es una onda
+  concreta. Se aborda como **definición operativa**: una fórmula fija, publicada y versionada, que responde de
+  forma reproducible a maniobras conocidas. La investigación de partida —qué señales da el hardware, qué
+  mezcla se propone y cómo se demuestra— es la sección 5 del análisis; la ronda es R11 y la decisión es D8.
 
 **Siguiente paso.** Ronda 0 de `docs/NEXT.md` (orden documental), y después R1 (red de sondas). Antes de
 empezar hace falta que el director elija entre el **camino A** (entregar antes) y el **camino B** (validez

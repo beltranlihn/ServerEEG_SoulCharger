@@ -58,6 +58,12 @@ Dos consecuencias:
    alfa/beta que la literatura asocia a relajación no interviene.
 2. **El módulo introduce saltos.** Cuando `p·0.1` cruza un entero, el valor cae de 0.99 a 0.00 de golpe. Un
    cambio mínimo de amplitud produce un salto máximo de la señal.
+3. **Los cuatro canales se mezclan en uno.** Cada `reading` trae un campo `electrode` —el Muse 2 tiene TP9,
+   AF7, AF8 y TP10— y el código **no lo mira**: `const samples = reading.samples` (`:1618`) trata por igual lo
+   que llega de la nuca y de la frente. A 256 Hz y 12 muestras por lectura, eso son unas 85 lecturas por
+   segundo de cuatro sitios distintos del cráneo colapsadas en una sola variable suavizada. Los canales
+   frontales son los más contaminados por parpadeo y tensión mandibular, así que el ruido de AF7/AF8 entra sin
+   filtrar en la misma cifra que TP9/TP10.
 
 Detalle incómodo: en modo simulación (`soul-charger-admin.html:1491-1495`) las bandas **sí** son cuatro señales
 independientes con distinta frecuencia y ruido. La simulación es más realista que el hardware.
@@ -203,7 +209,7 @@ debería. Es lo primero que hay que resolver para el requisito de sincronizació
 
 | Requisito del director | Qué hay hoy | Qué falta |
 |---|---|---|
-| **Float · índice de calma normalizado 0–1** | Se envía en el índice 13. El rango sí es 0–1 (`:1393-1396`). | El transporte funciona; **el contenido no es válido (H1)**. |
+| **Float · índice de calma normalizado 0–1** | Se envía en el índice 13. El rango sí es 0–1 (`:1393-1396`). | El transporte funciona; **el contenido no es válido (H1)**. Qué medir y cómo demostrarlo: **sección 5**. |
 | **Float · ritmo cardíaco** | Se calcula un número falso y se envía `0.0` (H2). | Leer PPG real y ocupar el índice 14, o dirección propia. |
 | **Integer · sensor activo/inactivo** | Se envía como *float* en los índices 16/17, y miente al caerse el enlace (H4, H8). | Tipo OSC `i`, y una detección de estado que sea cierta. |
 | **Elegir la IP de la gafa** | Campo editable pero no persistente, escondido y sin validar (H6). | Persistencia, validación y sitio visible. |
@@ -244,7 +250,8 @@ por el Blueprint de Unreal: cambiar su longitud rompe la instalación. Tres opci
 | **Direcciones nuevas dedicadas** (recomendada) | Tipos correctos (`f`, `f`, `i`), nombres legibles, `/muse/data` intacto | Hay que añadir nodos en el Blueprint |
 
 **D2 · De dónde sale el Calm Score válido.** Implementar FFT propia sobre `eegReadings`, o adoptar una
-librería de procesado. Afecta al presupuesto de CPU del navegador y a la latencia.
+librería de procesado. Afecta al presupuesto de CPU del navegador y a la latencia. **Es sólo la parte
+mecánica**; qué se mide y cómo se demuestra que mide algo está en la sección 5 y se decide en D8.
 
 **D3 · Dónde vive la tabla.** Fichero CSV escrito por el relay (ya sabe escribir en `research/`), o
 `localStorage` exportable. El relay es preferible: sobrevive al cierre del navegador.
@@ -313,9 +320,158 @@ Los límites reales que hay que medir antes de prometer un número:
 direcciones OSC con identificador de panel (`/soul/p{n}/...`) y una columna `panel` en el CSV admiten N sin
 cambiar el contrato. Clavar el dos otra vez es lo que hará caro el cambio después.
 
+**D8 · La definición operativa del índice de calma.** Es la decisión más cara de revertir de todas, y por eso
+tiene sección propia: **la 5**, que reúne qué señales da el hardware, qué mezcla se propone y cómo se
+demuestra que el número responde a algo. Se resume al final de esa sección.
+
 ---
 
-## 5. Cómo se verifica este proyecto
+## 5. Qué medir para hablar de calma
+
+Encargo explícito del director: *«la calma es algo ambiguo, no es una onda en particular, pero lo que sea que
+estemos midiendo tenga algo de coherencia»*. Esta sección es la investigación de partida. Fija **qué se puede
+medir con este hardware**, **qué mezcla se propone** y —lo que de verdad da coherencia— **cómo se demuestra
+que el número responde a la calma y no al azar**.
+
+### 5.1 El problema de fondo
+
+La calma no es observable. No existe un sensor de calma ni una banda de calma, y cualquiera que diga que alfa
+«es» relajación está simplificando. Lo que sí es defendible es esto:
+
+> Un índice de calma es una **definición operativa**: una fórmula fija, publicada y versionada, que responde
+> de forma **monótona y reproducible** a maniobras que sabemos que inducen relajación o activación.
+
+Bajo esa definición, el índice no tiene que ser «verdadero»: tiene que ser **consistente, sensible y
+declarado**. Eso es alcanzable con un Muse 2, y es lo que permite defender un resultado ante alguien que
+pregunte. Lo que no es alcanzable —y conviene no prometerlo— es un diagnóstico del estado emocional.
+
+### 5.2 Qué puede medir de verdad este hardware
+
+Verificado contra `vendor/muse-js.bundle.js`: EEG a **256 Hz** en cuatro canales (**TP9, AF7, AF8, TP10**), 12
+muestras por lectura; **PPG a 64 Hz**, 6 muestras por lectura; acelerómetro y giroscopio; telemetría y batería.
+
+| Señal | Qué mide | Solidez | Nota para este proyecto |
+|---|---|---|---|
+| **Potencia relativa alfa** (8–13 Hz), en TP9/TP10 | Relajación con vigilia; sube mucho al cerrar los ojos | **Alta.** El aumento de alfa al cerrar los ojos —efecto Berger— es de los fenómenos más replicados del EEG | El pilar del índice. Usar canales posteriores: los frontales se contaminan con parpadeo |
+| **Potencia relativa beta** (13–30 Hz) | Activación cognitiva, alerta | Media-alta como *proxy* de activación | Entra restando, no como denominador crudo |
+| **Relación alfa/beta** | Índice clásico de neurofeedback de relajación | Media. Muy usada, pero inestable si el denominador se acerca a cero | Preferible trabajar con potencias relativas y restar en escala logarítmica |
+| **Potencia relativa theta** (4–8 Hz) | Somnolencia, adormecimiento | Media | **Ambigua a propósito:** theta alta puede ser calma profunda o quedarse dormido. Útil para *detectar* somnolencia y marcarla, no para sumarla a la calma |
+| **RMSSD** del PPG (variabilidad del ritmo cardíaco) | Tono parasimpático | **Alta.** Marcador consolidado de activación vagal, y estimable en ventanas cortas | Es el segundo pilar, y es **independiente del EEG**: dos vías que coinciden valen mucho más que una |
+| **Ritmo cardíaco** del PPG | Activación autonómica general | Alta, pero muy sensible a postura y esfuerzo | Se envía como dato propio; dentro del índice aporta poco frente a RMSSD |
+| **Quietud** del acelerómetro y giroscopio | Movimiento corporal | Alta como medida de lo que es | No es calma, pero moverse mucho la invalida. Sirve de **filtro**, no de sumando |
+| **Potencia > 30 Hz** en canales frontales | Tensión muscular, apretar la mandíbula (EMG) | Alta como artefacto | Hoy se usa como «gamma». Su sitio real es **rechazar ventanas**, no restar puntos |
+| **Asimetría alfa frontal** (AF7 vs AF8) | Valencia afectiva, aproximación/evitación | **Baja-media, y discutida** | No mide calma sino agrado. **Recomendación: no incluirla.** Añade fragilidad y no responde a la pregunta |
+
+### 5.3 La mezcla que se propone
+
+Dos ejes que miden por vías fisiológicas distintas, más una puerta de calidad. Que dos vías independientes se
+muevan juntas es lo que da coherencia; un solo eje siempre se puede explicar por un artefacto.
+
+```
+                 ┌─ Eje cortical (EEG)  : z(log alfa_rel) − z(log beta_rel)
+índice de calma ─┤
+                 └─ Eje autonómico (PPG): z(log RMSSD)
+
+        × puerta de validez: contacto OK · sin EMG · sin parpadeo · quietud
+```
+
+**Composición.** `calm_raw = w_c · eje_cortical + w_a · eje_autonómico`, con `w_c + w_a = 1`. Empezar en
+**0,6 / 0,4** —el EEG responde antes, el HRV es más estable— y **dejar los pesos configurables y registrados
+en cada sesión**, porque el valor correcto sólo se sabe midiendo (§5.5).
+
+**Normalización a 0–1.** Cada componente se convierte en `z` contra el **baseline del propio participante**,
+que es lo que ya hace la calibración actual y es el instinto correcto: la potencia absoluta en µV² varía
+enormemente entre personas, entre sesiones y según el pelo y el contacto, y no es comparable en crudo. Después
+se recorta a ±2,5 y se lleva a 0–1. Esto conserva la arquitectura de calibración que ya existe.
+
+**Puerta de validez.** Si la ventana no pasa el control de calidad, **el índice no se actualiza y se marca la
+muestra como no válida**. No se inventa un valor: se mantiene el último bueno y se registra que fue retenido.
+Es la diferencia entre un dato defendible y uno maquillado.
+
+**Reglas de forma que evitan los errores actuales:**
+
+- **Potencias relativas, no absolutas.** Cada banda dividida por la potencia total de 1–40 Hz. Esto cancela
+  buena parte de la variación por impedancia y contacto.
+- **Logaritmo antes de promediar.** Las potencias de banda se distribuyen de forma aproximadamente
+  log-normal; promediar en lineal deja que un pico domine la media.
+- **Restar en vez de dividir.** `log(alfa) − log(beta)` es equivalente a la relación alfa/beta pero no explota
+  cuando el denominador tiende a cero, que es de dónde salen los picos absurdos.
+- **Nada de módulo.** El `% 1.0` actual es el origen de los saltos de 0,99 a 0,00 (H1).
+
+### 5.4 Cómo se calcula, en concreto
+
+1. **Separar por canal.** Acumular `reading.samples` en un búfer **por electrodo**, usando el campo
+   `electrode` que hoy se ignora (H1, punto 3).
+2. **Ventana de 2 s con solape del 75 %** — 512 muestras a 256 Hz, avanzando 128. Da resolución de 0,5 Hz,
+   suficiente para separar bandas, y una actualización cada 500 ms.
+3. **Ventana de Hann y FFT.** Potencia por banda: delta 1–4, theta 4–8, alfa 8–13, beta 13–30, y 30–45 sólo
+   para detectar EMG.
+4. **Control de calidad, antes de nada.** Descartar la ventana si hay saturación del amplificador, si la
+   potencia de 30–45 Hz supera el umbral de EMG, si hay un transitorio de parpadeo en los canales frontales o
+   si el acelerómetro indica movimiento brusco. **Descartar, no corregir.**
+5. **Potencias relativas y logaritmo**, promediando alfa y beta entre TP9 y TP10.
+6. **PPG en paralelo:** filtro paso banda 0,5–4 Hz, detección de picos sistólicos, serie de intervalos entre
+   latidos, rechazo de intervalos imposibles (fuera de 300–2000 ms o con un salto mayor del 20 % respecto al
+   anterior), y **RMSSD sobre una ventana deslizante de 60 s**. Menos de 30 s no da una estimación estable, y
+   conviene decirlo en vez de mostrar un número que baila.
+7. **Calibración:** durante el baseline, acumular media y desviación de cada componente. La duración actual
+   —300 muestras a 20 Hz, unos 15 s— es corta para el eje autonómico; el RMSSD pedirá **60 s o más**. Es una
+   decisión de diseño a tomar, no un detalle.
+8. **Composición, suavizado y salida.** Media móvil sobre el índice compuesto, con la constante ajustada a lo
+   que la instalación necesite: demasiado suave y no reacciona; demasiado vivo y tiembla.
+
+### 5.5 Cómo se demuestra que mide algo — lo que da la coherencia
+
+Sin esto, lo anterior es una fórmula bonita. **El protocolo de validación es el entregable de verdad**, y se
+puede ejecutar en el estudio, sin laboratorio, con dos personas y media hora.
+
+| Prueba | Maniobra | Qué tiene que pasar | Por qué vale |
+|---|---|---|---|
+| **A · Ojos cerrados / abiertos** | 60 s abiertos, 60 s cerrados, repetido 3 veces | El eje cortical **sube claramente** con ojos cerrados | Es la prueba decisiva. El efecto Berger es grande y fiable; **si el índice no separa esto, no mide estado cortical y no hay nada que discutir** |
+| **B · Respiración pausada / cálculo mental** | 3 min respirando a 6 por minuto, contra 3 min restando de 7 en 7 desde 1000 | El eje autonómico **sube** con la respiración pausada y baja con el cálculo | Contraste clásico de relajación frente a carga cognitiva. Valida el PPG con una maniobra conocida |
+| **C · Repetición** | La misma persona, la misma condición, dos días | Los valores **correlacionan** | Un índice que da cosas distintas el martes y el jueves no sirve para comparar participantes |
+| **D · Artefactos** | Apretar la mandíbula, parpadear seguido, mover la cabeza | El índice **no se mueve**; las muestras salen marcadas como no válidas | Comprueba que la puerta de calidad funciona. Es el fallo más probable en una instalación con público |
+| **E · Señal sintética** | Senos conocidos inyectados en el pipeline | Las bandas salen donde tienen que salir | Verifica el código de FFT antes de culpar a la fisiología |
+
+**Cómo se informa.** Con el **tamaño del efecto**, no con una impresión: *«ojos cerrados frente a abiertos,
+d = 1,4; el índice separa las dos condiciones en 9 de 10 repeticiones»*. «Se ve que sube» no es un resultado.
+
+**Y esto es lo que fija los pesos.** `w_c` y `w_a` no se eligen por intuición: se ajustan para maximizar la
+separación entre condiciones en las pruebas A y B, con los datos de varias personas. Si el eje autonómico no
+aporta separación, se le baja el peso y se dice.
+
+### 5.6 Reglas de honestidad del dato
+
+Sin estas cuatro, dentro de seis meses no se podrá defender ninguna cifra:
+
+1. **Versionar el índice.** Cada sesión guarda `calm_index_version` y los pesos usados. Si la fórmula cambia,
+   las sesiones viejas **no son comparables** con las nuevas, y hay que poder saberlo sin adivinar.
+2. **Guardar los subíndices, no sólo el compuesto.** El CSV lleva alfa relativa, beta relativa, RMSSD, el
+   estado de la puerta de calidad y el compuesto. Con un solo número no se puede averiguar después por qué se
+   movió.
+3. **Registrar el porcentaje de muestras válidas** de cada sesión. Una sesión con el 30 % de ventanas
+   rechazadas no vale lo mismo que una con el 95 %, y hoy no hay forma de distinguirlas.
+4. **No presentar como calma lo que es otra cosa.** Si theta alta sugiere somnolencia, se marca la sesión; no
+   se cuenta como calma profunda.
+
+### 5.7 Qué se hace con lo que ya existe
+
+No hay que tirarlo todo. **La arquitectura actual es correcta y lo que falla es el contenido:**
+
+- La **calibración con baseline por participante** y el z-score se conservan: es exactamente el enfoque
+  adecuado.
+- La **máquina de estados** `WARMUP → CALIBRATING → RUNNING` se conserva.
+- El **suavizado por media móvil** se conserva, revisando la constante.
+- Lo que se retira, y se archiva en `_backup/deprecated/`, son las pseudo-bandas `(avgPower · k) % 1.0` y el
+  pulso `70 + (avgPower % 30)`.
+
+**D8 · La definición operativa del índice de calma.** Es la decisión más cara de revertir del proyecto —una
+vez publicados resultados, cambiar la fórmula invalida lo anterior— y por eso necesita ADR propia, escrita
+**antes** de programar y **revisada después** de la validación, con los números medidos dentro.
+
+---
+
+## 6. Cómo se verifica este proyecto
 
 El método exige que exista una forma de medir desde el primer día. Aquí una sonda es un guion de Node que se
 ejecuta sin diadema y sin Unreal:
@@ -327,12 +483,13 @@ ejecuta sin diadema y sin Unreal:
 | `probe-dropout` | Simula un corte a mitad de sesión y comprueba que el flujo OSC no se detiene y que el estado del sensor pasa a inactivo. | Hoy el flujo se congela con BT=1: debe fallar. |
 | `probe-csv` | Ejecuta una sesión sintética y **abre el CSV resultante**, contando filas y validando cabeceras. | El material que se fabrica y no se mira esconde fallos. |
 | `probe-inbound` | Envía un OSC al puerto de escucha **desde otra máquina o desde otro puerto de origen**, y comprueba que llega al navegador. | Hoy debe fallar: el puerto es efímero (H9). Enviar desde el puerto de origen del propio relay no vale — mediría la premisa, no la conclusión. |
+| `probe-calm` | Reproduce grabaciones etiquetadas de ojos abiertos y ojos cerrados y exige que el índice las separe con un tamaño de efecto mínimo. | Es la sonda de la conclusión del proyecto entero. Requiere el corpus de la sección 5.5; hasta que exista, el índice **no está verificado y se dice así**. |
 
-Las cinco miden la conclusión —lo que Unreal recibe y lo que queda escrito—, no la premisa.
+Las seis miden la conclusión —lo que Unreal recibe y lo que queda escrito—, no la premisa.
 
 ---
 
-## 6. Lo que está bien y conviene no romper
+## 7. Lo que está bien y conviene no romper
 
 Para que la lista de arriba no dé una impresión equivocada, esto ya está resuelto y es correcto:
 
