@@ -30,3 +30,4 @@ toca —persona o asistente— sólo ve el código y no el motivo. La ADR es lo 
 | [0001](adr-0001-sdk-fuera-de-git.md) | El SDK de Muse no se versiona | Aceptada |
 | [0002](adr-0002-vendor-sin-cdn.md) | Las dependencias se sirven en local, sin CDN | Aceptada |
 | [0003](adr-0003-arreglo-osc-congelado.md) | El arreglo OSC `/muse/data` tiene longitud congelada de 18 floats | Aceptada |
+| [0004](adr-0004-direcciones-osc-dedicadas.md) | Los valores nuevos viajan por direcciones OSC dedicadas | Aceptada |

@@ -36,7 +36,8 @@ Los números de línea orientan, no son exactos: verificar el símbolo por búsq
 |---|---|---|---|---|
 | Relay WS→UDP | HTTP estático 5500 + WebSocket 3000 → OSC/UDP 8000 | `backend/server.js` (261 L) | ✅ | — |
 | `UDPPort` por cliente | Un socket UDP por WebSocket; estado colgado de `ws` | `backend/server.js:82-88` | ✅ base de multi-panel | D7 |
-| Empaquetado `/muse/data` | Arreglo de 18 floats; idx 14 (`heart_rate`) sale `0.0` | `backend/server.js:229` · diccionario `:71` | ⚠️ pulso ausente | H2, adr-0003 |
+| Empaquetado `/muse/data` | Arreglo de 18 floats (longitud congelada); idx 14 sigue `0.0` a propósito | `backend/server.js:229` · diccionario `:71` | ✅ | adr-0003 |
+| Direcciones dedicadas | `/muse/calm` (f), `/muse/heart_rate` (f), `/muse/sensor_active` (i) — el arreglo no se toca | `backend/server.js` (tras el send de `/muse/data`) | ✅ transporte (valor pulso = R7) | R4, adr-0004 |
 | Escudo de NaN | `safeFloat()` retiene el último valor sano por cliente | `backend/server.js:73-79` | ✅ **no romper** | — |
 | Canal de entrada | Escucha `/unreal/end_session` en `localPort: 0` (efímero) | `backend/server.js:89-95, 120-128` | ⚠️ inalcanzable | H9, R10 |
 | Guarda de ruta estática | Valida la ruta del servidor HTTP | `backend/server.js:28` | ✅ | — |

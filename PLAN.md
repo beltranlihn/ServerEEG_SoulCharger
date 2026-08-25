@@ -7,6 +7,25 @@ hizo.
 
 ---
 
+## R4 · Contrato OSC nuevo — 2026-08-30 — Direcciones dedicadas para calma, pulso y sensor
+
+Encargo del director: enviar índice de calma, ritmo cardíaco y estado del sensor. Se hace **fuera del orden del camino A** (iría tras R2/R3) porque es independiente de ellas y es lo primero que el director puede **testear con TouchDesigner**; la sonda de R1 ya lo cubría.
+
+**Qué se hizo.**
+
+1. **ADR-0004** (D1): los tres valores viajan por **direcciones OSC dedicadas**, no alargando el arreglo congelado de 18 floats (ADR-0003, que no admite el tipo entero). Las salientes conservan el prefijo `/muse/` sin id de panel: cada panel envía a su propia IP y el destino ya desambigua; el id de panel se reserva para el canal de entrada (R10).
+2. **`backend/server.js`**: tras el envío de `/muse/data`, se emiten `/muse/calm` (`f`), `/muse/heart_rate` (`f`) y `/muse/sensor_active` (`i`), pasando por el escudo de NaN (floats) y coerción a 0/1 (entero). El arreglo **no se toca**.
+3. **`CLAUDE.md`**: documentados los nodos a añadir en Unreal/TouchDesigner (`Get OSC Message Float/Int At Index 0`).
+4. **`probe-osc`**: corregida la comprobación obsoleta del pulso — ahora afirma que el pulso viaja por `/muse/heart_rate` y que idx14 del arreglo sigue en `0.0` (contrato congelado), no que el arreglo lleve el pulso.
+
+**Medido.** `npm run probe` pasa de **rojo (exit 1)** a **verde (exit 0)**: llegan `/muse/heart_rate` (f) ≈ 72 bpm, `/muse/sensor_active` de tipo entero (i), y el arreglo `/muse/data` intacto (18 floats, idx14 = 0.0). La misma sonda que cazaba la ausencia ahora confirma la presencia.
+
+**Sin verificar.** No se ha probado **contra Unreal ni TouchDesigner** (no hay motor en este equipo): esa parte del encargo R4 queda para el director. Y el **valor** del pulso sigue siendo el inventado (H2) hasta R7; el del estado del sensor, hasta R3/R8: esta ronda fija el **transporte**, no la validez del contenido.
+
+**Siguiente paso.** R2 (persistir IP), R3 (continuidad ante caídas) — o, en camino B, R7/R8 (señal real). Varias de las que quedan necesitan una diadema Muse física (R7, R8) o un estudio con personas (R11), y no se pueden cerrar sin ellas.
+
+---
+
 ## R1 · La red de sondas — 2026-08-30 — `probe-osc` que sabe fallar
 
 Segunda ronda de `docs/NEXT.md`. Instala la verificación **antes** de tocar código de señal: sin una forma de medir, el sistema nuevo se escribiría a ciegas (así se llegó al Calm Score que lleva meses sin medir calma, H1).

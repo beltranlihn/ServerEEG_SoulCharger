@@ -60,6 +60,15 @@ El mensaje `/muse/data` es un arreglo de **exactamente 18 floats**. Unreal lo le
 
 Los otros 14 índices se envían como `0.0` a propósito (giroscopio, acelerómetro y bandas puras silenciados). **Se envían igual** para preservar la longitud. ⚠️ El índice 14 (`heart_rate` en el diccionario interno, `server.js:71`) sale hoy como `0.0`: el pulso no llega a Unreal (H2).
 
+**Direcciones dedicadas (R4, ADR-0004) — el arreglo NO se toca:**
+| Dirección | Tipo | Valor | Nota |
+|---|---|---|---|
+| `/muse/calm` | `f` | 0–1 | Duplica el idx 13 con nombre legible |
+| `/muse/heart_rate` | `f` | bpm | **Transporte** listo; el valor es aún el inventado hasta R7 (H2) |
+| `/muse/sensor_active` | `i` | 0/1 | Entero; su veracidad la arreglan R3/R8 (H4/H8) |
+
+> **Nodos a añadir en Unreal / TouchDesigner (probar contra el motor, no sólo contra la sonda):** un `OSC Message` por dirección → `Get OSC Message Float At Index 0` para `/muse/calm` y `/muse/heart_rate`; `Get OSC Message Int At Index 0` para `/muse/sensor_active`. El arreglo `/muse/data` sigue igual: los nodos existentes no se tocan. Verificado end-to-end por `probe-osc` (`npm run probe` en verde); el test contra Unreal/TouchDesigner queda por hacer.
+
 Otras direcciones:
 - `/muse/v2/calm` — float suelto, en mensajes de tipo `calm_update`.
 - `/unreal/end_session` — **entrante**, desde Unreal. El relay tiene código para reenviarlo al navegador como `unreal_command`, pero **no está comprobado que llegue nunca**: el socket escucha en un puerto efímero (`localPort: 0`, `backend/server.js:91`) que cambia en cada reconexión, así que Unreal no puede saber a dónde enviar (H9). Es lo primero que bloquea la sincronización bidireccional planificada (R10).

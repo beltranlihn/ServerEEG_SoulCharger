@@ -236,6 +236,15 @@ wss.on('connection', function connection(ws) {
                     ]
                 });
 
+                // [R4] Direcciones OSC dedicadas (ADR-0004). El arreglo /muse/data NO se
+                // toca; estas llevan cada valor con su tipo correcto y un nombre legible.
+                // calm y heart_rate ya pasaron por el escudo de NaN (v[14], v[15]); el
+                // estado del sensor se coacciona a entero 0/1.
+                const sensorActiveInt = (fAct >= 0.5) ? 1 : 0;
+                ws.udpPort.send({ address: "/muse/calm",          args: [{ type: "f", value: v[14] }] });
+                ws.udpPort.send({ address: "/muse/heart_rate",    args: [{ type: "f", value: v[15] }] });
+                ws.udpPort.send({ address: "/muse/sensor_active", args: [{ type: "i", value: sensorActiveInt }] });
+
                 // Eliminado el envío de /muse/headset para no romper el Blueprint de Unreal
 
                 // Solo devolvemos el mirror a ESTE cliente

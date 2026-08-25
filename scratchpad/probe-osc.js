@@ -82,15 +82,19 @@ function run() {
       }
 
       // ── Contrato NUEVO de R4 (HOY EN ROJO: la sonda sabe fallar) ────────
+      // Nota: R4 sólo verifica el TRANSPORTE del pulso; su VALOR sigue siendo el
+      // inventado (H2) hasta R7 (PPG real).
       const hr = byAddr('/muse/heart_rate');
       add(hr.length > 0 && hr[0].args[0] && Math.abs(hr[0].args[0].value - SENT.bpm) < 2,
-        `[R4] /muse/heart_rate (f) ≈ ${SENT.bpm} bpm  — hoy NO llega (H2)`);
+        `[R4] /muse/heart_rate (f) ≈ ${SENT.bpm} bpm (transporte; valor real = R7)`);
       const sa = byAddr('/muse/sensor_active');
       add(sa.length > 0 && sa[0].args[0] && sa[0].args[0].type === 'i',
-        '[R4] /muse/sensor_active de tipo entero (i)  — hoy NO existe');
+        '[R4] /muse/sensor_active de tipo entero (i)');
+      // El pulso viaja por su direccion dedicada, NO en el arreglo congelado:
+      // idx14 se queda en 0.0 a proposito (ADR-0003 / ADR-0004).
       if (data.length) {
-        const hrInArray = last(data).args[14] && last(data).args[14].value;
-        add(hrInArray > 0, `[R4] el pulso llega distinto de 0  — hoy idx14 = ${hrInArray} (H2)`);
+        const idx14 = last(data).args[14] && last(data).args[14].value;
+        add(idx14 === 0, `[R4] idx14 del arreglo sigue en 0.0 (el pulso va por /muse/heart_rate, no aqui)`);
       }
     }
   });
