@@ -19,14 +19,18 @@ sistema de trabajo de Alma Digital Studio. **No se ha escrito código nuevo toda
 **Antes de tocar nada, leer en este orden:**
 
 1. `METODO.md` — las reglas. No son opcionales; cada una nació de un fallo concreto.
-2. `docs/historial/2026-08-25-analisis-para-traspaso.md` — **el documento importante.** Contiene los ocho
+2. `docs/historial/2026-08-25-analisis-para-traspaso.md` — **el documento importante.** Contiene los nueve
    hallazgos de la lectura del código, con `fichero:línea`. Todas las entradas de esta cola remiten a él
-   como `H1`…`H8`.
+   como `H1`…`H9`.
 3. `CLAUDE.md` — el contrato: puertos, contrato OSC, algoritmo, trampas.
 
 **El siguiente paso es la Ronda 0.** No empezar por el encargo nuevo: primero el orden documental, y
 después la red de sondas. Escribir el sistema nuevo sin forma de medirlo es cómo se llega a tener un Calm
 Score que lleva meses sin medir calma (H1).
+
+**Alcance actual: dos usuarios simultáneos** (P1 y P2), como hasta ahora. Crecer a más usuarios es
+**arquitectura futura**, está descrito al final de este documento y **no se implementa en ninguna de las
+rondas de abajo**. Lo único que se pide ahora es no clavar el número dos en sitios nuevos: ver D7.
 
 **Lo que hay que saber antes de prometer nada al director:** tres de los datos que el sistema muestra hoy no
 son lo que dicen ser — las bandas EEG (H1), el ritmo cardíaco (H2) y el promedio de calma del research, que
@@ -45,6 +49,11 @@ incluye 75 sesiones fabricadas (H3). No son fallos de transporte; son fallos de 
 instalación no se rompa en vivo; camino B si lo próximo es publicar o defender resultados. Es una decisión del
 director, no del desarrollador.
 
+**R9 y R10 no están en ninguno de los dos caminos.** R9 (unificar el pipeline duplicado) se hace cuando pese
+más el coste de arreglarlo todo dos veces. R10 (canal de vuelta desde la gafa) va justo después de R4 en
+cuanto se decida, porque comparte el esquema de direcciones y es más barato diseñarlo a la vez que
+renegociarlo después.
+
 ---
 
 ## Rápido
@@ -56,7 +65,10 @@ director, no del desarrollador.
       *gotchas*). **Conservar todo el contenido actual**, que está verificado contra el código.
 - [ ] Fusionar `docs/plantillas-sin-fusionar/README.md`: añadir la tabla de documentación.
 - [ ] Borrar `docs/plantillas-sin-fusionar/` cuando las dos fusiones estén hechas.
-- [ ] Rellenar `ARCHITECTURE.md`. La materia prima está en las secciones 1 y 2 del análisis.
+- [ ] Rellenar `ARCHITECTURE.md`. La materia prima está en las secciones 1 y 2 del análisis. **Dibujar el
+      relay como un extremo de dos sentidos**, no como un emisor: el director ha confirmado que habrá
+      sincronización bidireccional con la gafa (envía OSC y también recibe). El uso concreto está sin definir,
+      pero la arquitectura tiene que contemplarlo desde ahora — ver D6 y H9 en el análisis, y R10.
 - [ ] Rellenar `COMPONENTS.md` con los subsistemas reales: *Panel*, *Pipeline de señal*, *Transporte OSC*,
       *Persistencia y research*, *Relay*, *Integración Unreal*. Marcar con ⚠️ lo que el análisis señala frágil.
 - [ ] Personalizar `.claude/skills/arch-map/SKILL.md` y `.claude/agents/arch-explorer.md`: sustituir los
@@ -120,6 +132,9 @@ Es la ronda que más protege la instalación en vivo.
 - [ ] **No modificar la longitud del arreglo de 18 floats.** Rompe el Blueprint de Unreal.
 - [ ] Documentar los nodos que hay que añadir en Unreal, y **probarlo contra Unreal**, no sólo contra la sonda.
 - [ ] Ampliar `probe-osc` para exigir los tres mensajes con sus tipos correctos.
+- [ ] **No cerrar la puerta al canal de vuelta.** El esquema de direcciones que se elija aquí es el mismo que
+      usará R10 para recibir; si se nombran las salientes sin identificador de panel, la vuelta no podrá
+      desambiguar entre dos gafas. Ver D6 en el análisis.
 
 ### R5 · La tabla de textos — encargo del director, H5
 
@@ -145,6 +160,33 @@ Es la ronda que más protege la instalación en vivo.
       que se incrementa al conectar (`:1480`) y también al simular (`:1588`).
 - [ ] Corregir el comentario obsoleto de `:1650`, que dice «+4%» cuando `TARGET_AVG = 7`.
 - [ ] Revisar que el research y el análisis profundo declaren cuántas sesiones son reales.
+
+### R10 · Canal de vuelta desde la gafa — encargo del director, H9
+
+Sincronización bidireccional: la aplicación envía OSC a la gafa y **también recibe**. El director ha
+confirmado que ocurrirá; **para qué servirá está sin definir**. Esta ronda construye el transporte y lo deja
+verificado, sin inventar mensajes.
+
+Se puede hacer **inmediatamente después de R4**, porque toca el mismo código del relay y el mismo esquema de
+direcciones. Hacerlo mucho más tarde obliga a renegociar el contrato con la gafa cuando ya esté en uso.
+
+- [ ] **Escribir la ADR de D6 antes de tocar código.** La tabla de opciones está en la sección 4 del análisis.
+- [ ] Dar al relay un **puerto de escucha fijo y configurable**. Hoy es efímero (`localPort: 0`,
+      `backend/server.js:91`) y cambia en cada reconexión, así que la gafa no puede alcanzarlo: por eso la ruta
+      de entrada que ya existe no es fiable.
+- [ ] Averiguar si `/unreal/end_session` (`backend/server.js:120-128`) **ha llegado a funcionar alguna vez**.
+      Con la configuración actual no debería. Si funcionaba, entender por qué antes de cambiar nada.
+- [ ] Sustituir el `if` por dirección por una **tabla de enrutado** dirección → manejador.
+- [ ] Reenviar lo entrante al navegador con un mensaje genérico `{type:'osc_in', address, args}`, para poder
+      añadir mensajes nuevos sin volver a tocar el relay.
+- [ ] Resolver **a qué panel corresponde** cada mensaje entrante: con dos gafas en la misma red hace falta
+      desambiguar, y hoy no hay forma. Recomendación: identificador de panel en la dirección (`/soul/p1/...`).
+- [ ] Implementar **un solo** mensaje de prueba, `/soul/ping` → `/soul/pong`, que sirve de sonda permanente.
+      **No añadir mensajes especulativos**: envejecen como comentarios y nadie sabrá si alguien los usa.
+- [ ] **`probe-inbound`**: enviar un OSC al puerto de escucha **desde otro puerto de origen** y comprobar que
+      llega hasta el navegador. Enviar desde el propio socket del relay no vale: mediría la premisa, no la
+      conclusión.
+- [ ] Documentar en `CLAUDE.md` el contrato de entrada junto al de salida, y añadir el puerto a la tabla.
 
 ---
 
@@ -182,6 +224,36 @@ La ronda que da validez a todo lo demás. Leer H1 entero antes de empezar.
       `soul-charger-app.html` si el admin ya cubre su función.
 - [ ] Mientras haya dos copias, **todo arreglo se hace dos veces**. Es la causa más probable de que una
       corrección quede a medias.
+
+---
+
+## Arquitectura futura — NO planificado, no se implementa todavía
+
+Esto **no son rondas** y no tiene fecha. Está escrito para que las decisiones de las rondas de arriba no
+cierren la puerta, no para hacerlo ahora.
+
+### Escalabilidad a múltiples usuarios — D7
+
+El alcance actual son **dos usuarios**. El crecimiento a N usuarios conectados está confirmado como dirección,
+sin plazo ni número concreto.
+
+**Ya escala:** el relay. Todo el estado cuelga del objeto `ws` de cada cliente, con su propio socket UDP
+(`backend/server.js:82-88`). Un tercer panel no requiere tocarlo.
+
+**Está clavado en dos:** 21 identificadores `-1` y 21 `-2` escritos a mano en el HTML del admin; los dos
+`new MusePanel(...)` de `:1772-1773`; los filtros `p1sessions`/`p2sessions` de `:829-830` y `:1001-1007`; el
+resumen `P1: n · P2: n` de `:841`; y las dos ventanas del lanzador `.bat`.
+
+**Sin medir, y hay que medirlo antes de prometer un número:** cuántas conexiones GATT simultáneas aguanta
+Chrome de forma estable en una sola pestaña. Es el techo más probable y sólo se sabe con hardware.
+
+**Lo único que se pide en las rondas de arriba** (coste casi nulo, y evita rehacer el contrato después):
+
+- [ ] En R4, nombrar las direcciones OSC con identificador de panel (`/soul/p{n}/...`), no «P1/P2» cerrado.
+- [ ] En R5, incluir una columna `panel` en el CSV en vez de dos ficheros o dos columnas fijas.
+- [ ] En R10, resolver a qué panel corresponde cada mensaje entrante de forma que admita N.
+- [ ] En R0, que `ARCHITECTURE.md` describa el panel como **una instancia de un componente**, no como dos
+      piezas distintas.
 
 ---
 

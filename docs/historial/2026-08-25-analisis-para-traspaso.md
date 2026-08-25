@@ -169,6 +169,34 @@ cualquier señal por encima de 1 µV y sólo vuelve a 0 por el watchdog de 800 m
 El bundle expone `telemetryData` y `batteryLevel`, que dan información de estado del dispositivo, y el propio
 `connectionStatus` de muse-js informa del enlace. Ninguno se usa.
 
+### H9 · El canal de entrada OSC no tiene puerto fijo — bloquea la bidireccionalidad
+
+El relay **ya recibe** OSC: `backend/server.js:120-128` escucha `/unreal/end_session` y lo reenvía al navegador
+como `unreal_command`. La bidireccionalidad está esbozada.
+
+Pero el socket se abre así (`server.js:89-95`):
+
+```js
+ws.udpPort = new osc.UDPPort({
+    localAddress: "0.0.0.0",
+    localPort: 0,               // ← el sistema operativo asigna un puerto libre
+    remoteAddress: ws.targetIp,
+    remotePort: ws.targetPort,
+});
+```
+
+`localPort: 0` significa que **el puerto de escucha es efímero y distinto en cada conexión**, y cambia otra vez
+cada vez que se reconfigura la IP, porque `initUDP()` cierra y reabre el socket (`:86-88`).
+
+Consecuencia: para que la gafa alcance al relay tendría que enviar a un número de puerto que no puede conocer
+de antemano y que cambia solo. Sólo funcionaría si el emisor respondiese al puerto de origen del datagrama que
+recibió, y los emisores OSC de Unreal y TouchDesigner envían a una dirección **configurada**, no a la de
+origen.
+
+Es decir: la ruta de entrada existe en el código, pero **no se ha comprobado que llegue nunca nada por ella**.
+Si `/unreal/end_session` funcionó alguna vez, conviene averiguar cómo, porque con esta configuración no
+debería. Es lo primero que hay que resolver para el requisito de sincronización bidireccional.
+
 ---
 
 ## 3. Los requisitos nuevos frente al código actual
@@ -184,6 +212,7 @@ El bundle expone `telemetryData` y `batteryLevel`, que dan información de estad
 | **Ver el número de usuario que se está midiendo** | `soulcharger_users` existe pero es un contador global poco fiable (H3). | Número de participante de la sesión en curso, visible en el visor. |
 | **Botón Simulate** | Existe en el admin (`:454`, `:488`). **No existe en `soul-charger-app.html`** (H7). | Llevarlo al visor y unificar su comportamiento. |
 | **Si se cae a mitad de sesión, seguir enviando datos simulados** | No hay detección de caída; se congela el flujo (H4). | Detectar el corte y conmutar a simulación sin cortar el OSC. |
+| **Sincronización bidireccional con la gafa** (futuro, uso sin definir) | Hay una ruta de entrada esbozada (`/unreal/end_session`) pero sobre un puerto efímero que la gafa no puede conocer (H9). | Puerto de escucha fijo y configurable, y una capa de enrutado de mensajes entrantes en vez de un `if` por caso. |
 
 ### Una advertencia sobre el último requisito
 
@@ -226,6 +255,64 @@ las presentaciones comerciales. Hay que decidirlo antes de tocar el research.
 **D5 · Un fichero o dos.** Si `soul-charger-app.html` sigue existiendo, todo arreglo se hace por duplicado.
 Extraer el pipeline a un módulo compartido en `vendor/` o `src/` es la alternativa.
 
+**D6 · La forma del canal de vuelta.** El director ha confirmado que habrá **sincronización bidireccional con
+la gafa**: la aplicación enviará OSC y también recibirá. *Qué* se recibirá está sin definir, pero la
+arquitectura tiene que contemplar desde ya que **el relay es un extremo de dos sentidos, no un emisor**.
+
+Lo que hay que decidir ahora, aunque el contenido llegue después:
+
+| Punto | Opciones | Nota |
+|---|---|---|
+| Puerto de escucha | Fijo y configurable (p. ej. 9000) para todo el relay, o uno fijo por panel | Hoy es efímero y por eso no es alcanzable (H9). Un puerto fijo por proceso es lo más simple y lo que esperan Unreal y TouchDesigner |
+| Enrutado | Tabla de direcciones → manejadores, o el `if` actual por caso | Con un solo mensaje el `if` bastaba; con un canal abierto se convierte en una escalera |
+| Reenvío al navegador | Mensaje genérico `{type:'osc_in', address, args}`, o un tipo por caso | El genérico permite añadir mensajes sin tocar el relay |
+| A qué panel va lo que entra | Por IP de origen, por un identificador en la dirección OSC, o difusión a todos | Con dos gafas en la misma red hace falta desambiguar; hoy no hay forma |
+
+**Recomendación:** puerto de escucha fijo y configurable, tabla de enrutado, reenvío genérico al navegador, y
+un identificador de panel en la dirección OSC (`/soul/p1/...`). Decidirlo ahora cuesta una tarde; decidirlo
+cuando ya haya mensajes en producción obliga a romper el contrato con la gafa.
+
+**Diseñar el canal ≠ inventar su contenido.** Mientras no se defina para qué sirve, se implementa el
+transporte y un solo mensaje de prueba (`/soul/ping` → `/soul/pong`) que sirva de sonda. No añadir mensajes
+especulativos: envejecen como comentarios.
+
+**D7 · Escalabilidad a N usuarios — arquitectura futura, no se implementa ahora.** El alcance actual son
+**dos usuarios simultáneos** (P1 y P2) y así se queda. Pero el director ha confirmado que habrá que crecer a
+varios usuarios conectados, y conviene saber qué lo impide hoy para no clavar más el número dos en sitios
+nuevos.
+
+Qué escala ya, sin tocarlo:
+
+- **El relay.** Cada WebSocket abre su propio `UDPPort` con su IP y puerto de destino
+  (`backend/server.js:82-88`), y todo el estado —el escudo de NaN, el destino, los temporizadores— cuelga del
+  objeto `ws`. No hay estado global compartido entre clientes. Añadir un tercer panel no requiere tocar el
+  relay.
+
+Qué está clavado en dos, con su ubicación:
+
+| Punto | Dónde | Qué costaría |
+|---|---|---|
+| El HTML de los paneles | `soul-charger-admin.html`, **21 identificadores `-1` y 21 `-2` escritos a mano** | Generar el panel desde una plantilla en vez de duplicar el marcado |
+| La creación de paneles | `:1772-1773`, dos `new MusePanel(...)` con IP fija | Una lista de configuración, y la IP persistida por panel (R2) |
+| La comparación del análisis profundo | `:829-830`, `:1001-1007`, filtros `p1sessions` / `p2sessions` | Agrupar por `panelId` en vez de por dos constantes |
+| El resumen de sesiones | `:841`, texto `P1: n · P2: n` | Lo mismo |
+| El lanzador | `Iniciar Soul Charger.bat`, abre dos ventanas | Parametrizar el número |
+
+Los límites reales que hay que medir antes de prometer un número:
+
+- **Web Bluetooth.** Cada panel mantiene su propia conexión GATT desde la misma pestaña. Cuántas diademas
+  aguanta Chrome de forma estable en un solo proceso **no se ha medido**, y es el techo más probable. Es un
+  dato que hay que obtener con hardware, no razonando.
+- **Coste de dibujo.** Una gráfica Chart.js por panel a 20 Hz. La auditoría anterior ya atribuía consumo de
+  vídeo a este punto.
+- **Una sola máquina.** Hoy navegador y relay comparten equipo. Con muchos usuarios, lo natural es separar el
+  relay y que cada puesto tenga su navegador — lo que convierte `localhost:3000` en una dirección de red y
+  obliga a revisar el modelo entero.
+
+**Qué hacer ahora, que es casi gratis:** en R4 y R5, no nombrar nada «P1/P2» de forma cerrada. Un esquema de
+direcciones OSC con identificador de panel (`/soul/p{n}/...`) y una columna `panel` en el CSV admiten N sin
+cambiar el contrato. Clavar el dos otra vez es lo que hará caro el cambio después.
+
 ---
 
 ## 5. Cómo se verifica este proyecto
@@ -239,8 +326,9 @@ ejecuta sin diadema y sin Unreal:
 | `probe-osc` | Abre un puerto UDP, recibe los mensajes del relay y comprueba direcciones, **tipos** y rangos. | Con el código actual el pulso llega `0.0` y el sensor llega como `f`: debe fallar. |
 | `probe-dropout` | Simula un corte a mitad de sesión y comprueba que el flujo OSC no se detiene y que el estado del sensor pasa a inactivo. | Hoy el flujo se congela con BT=1: debe fallar. |
 | `probe-csv` | Ejecuta una sesión sintética y **abre el CSV resultante**, contando filas y validando cabeceras. | El material que se fabrica y no se mira esconde fallos. |
+| `probe-inbound` | Envía un OSC al puerto de escucha **desde otra máquina o desde otro puerto de origen**, y comprueba que llega al navegador. | Hoy debe fallar: el puerto es efímero (H9). Enviar desde el puerto de origen del propio relay no vale — mediría la premisa, no la conclusión. |
 
-Las cuatro miden la conclusión —lo que Unreal recibe y lo que queda escrito—, no la premisa.
+Las cinco miden la conclusión —lo que Unreal recibe y lo que queda escrito—, no la premisa.
 
 ---
 

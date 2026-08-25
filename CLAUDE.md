@@ -74,7 +74,13 @@ Los demás 14 índices se envían como `0.0` a propósito (giroscopio, aceleróm
 
 Otras direcciones:
 - `/muse/v2/calm` — float suelto, en mensajes de tipo `calm_update`.
-- `/unreal/end_session` — **entrante**, desde Unreal. El relay lo reenvía al navegador como `unreal_command`.
+- `/unreal/end_session` — **entrante**, desde Unreal. El relay tiene el código para reenviarlo al navegador
+  como `unreal_command`, pero **no está comprobado que llegue nunca**: el socket escucha en un puerto efímero
+  (`localPort: 0`, `backend/server.js:91`) que cambia en cada reconexión, así que Unreal no puede saber a
+  dónde enviar. Ver H9 en `docs/historial/2026-08-25-analisis-para-traspaso.md`.
+
+Está previsto que este canal de entrada crezca hasta una **sincronización bidireccional con la gafa**: el
+relay envía y recibe. El uso concreto está sin definir; el diseño del transporte es R10 en `docs/NEXT.md`.
 
 ## Algoritmo de Calm Score
 

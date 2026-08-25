@@ -35,7 +35,7 @@ Ronda de preparación para incorporar a otra persona al proyecto. **No se escrib
   `git check-ignore` sobre los tres ficheros devuelve vacío.
 
 **Trampas encontradas.** Están en
-`docs/historial/2026-08-25-analisis-para-traspaso.md`, ocho hallazgos con `fichero:línea`. Las tres que
+`docs/historial/2026-08-25-analisis-para-traspaso.md`, nueve hallazgos con `fichero:línea`. Las cuatro que
 condicionan el encargo siguiente:
 
 - **H1** — las bandas EEG no son bandas: alfa, beta, theta y delta salen del mismo escalar de amplitud media,
@@ -45,9 +45,21 @@ condicionan el encargo siguiente:
   escribe `0.0` en su índice. El Muse 2 tiene PPG y el bundle ya lo soporta.
 - **H3** — el research promedia 75 sesiones fabricadas con media forzada a `+7 %` mezcladas con las reales, y
   borrarlas no funciona: al recargar se replantan.
+- **H9** — el canal OSC de entrada escucha en un puerto efímero (`localPort: 0`), que cambia en cada
+  reconexión. La gafa no puede saber a dónde enviar, así que el único mensaje entrante que existe en el código
+  (`/unreal/end_session`) probablemente nunca ha llegado. Es lo primero que bloquea la sincronización
+  bidireccional que el director ha confirmado para más adelante.
 
 **Sin verificar.** Nada se probó con diadema física ni contra Unreal; el análisis es lectura de código. Los
 puntos abiertos están al final de `docs/NEXT.md`.
+
+**Alcance fijado por el director en esta sesión.**
+
+- Se trabaja para **dos usuarios simultáneos**. Crecer a N usuarios es dirección confirmada pero **arquitectura
+  futura**: está descrita en D7 y en la sección «Arquitectura futura» de `docs/NEXT.md`, y no se implementa en
+  ninguna ronda. Lo único que se pide es no volver a clavar el número dos.
+- Habrá **sincronización bidireccional con la gafa** —el relay envía y recibe—, con el uso todavía sin
+  definir. Se planifica el transporte (R10) sin inventar mensajes.
 
 **Siguiente paso.** Ronda 0 de `docs/NEXT.md` (orden documental), y después R1 (red de sondas). Antes de
 empezar hace falta que el director elija entre el **camino A** (entregar antes) y el **camino B** (validez
