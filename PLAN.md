@@ -65,6 +65,15 @@ puntos abiertos están al final de `docs/NEXT.md`.
   forma reproducible a maniobras conocidas. La investigación de partida —qué señales da el hardware, qué
   mezcla se propone y cómo se demuestra— es la sección 5 del análisis; la ronda es R11 y la decisión es D8.
 
-**Siguiente paso.** Ronda 0 de `docs/NEXT.md` (orden documental), y después R1 (red de sondas). Antes de
-empezar hace falta que el director elija entre el **camino A** (entregar antes) y el **camino B** (validez
-antes), descritos en la cabecera de esa cola.
+- La esfera de la instalación y el registro de investigación **no se mueven con el mismo número**: la primera
+  con quietud física (rápida, muscular), el segundo con el índice de calma (lento, defendible). Separadas
+  desde el origen — D9, y el aviso de la sección 5.8.
+
+**Siguiente paso.** **R12, el experimento del círculo**, previsto para el 2026-08-26 en cuanto haya diadema:
+graba EEG crudo en lazo abierto mientras la persona marca con el ratón cuándo *intenta* achicar el círculo, y
+después se busca qué señal correlaciona con esa intención, contra un criterio de azar por permutación. Su
+resultado condiciona D8, D9 y R11, y de paso construye el corpus de grabación que R11 necesitaba igualmente.
+La aplicación de grabación se puede montar sin diadema.
+
+Después, la Ronda 0 (orden documental) y R1 (red de sondas). Y hace falta que el director elija entre el
+**camino A** (entregar antes) y el **camino B** (validez antes), descritos en la cabecera de la cola.

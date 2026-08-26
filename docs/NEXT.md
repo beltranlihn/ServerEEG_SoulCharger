@@ -25,9 +25,14 @@ sistema de trabajo de Alma Digital Studio. **No se ha escrito código nuevo toda
    de señales propuesta y el protocolo para demostrar que el número responde a algo.
 3. `CLAUDE.md` — el contrato: puertos, contrato OSC, algoritmo, trampas.
 
-**El siguiente paso es la Ronda 0.** No empezar por el encargo nuevo: primero el orden documental, y
-después la red de sondas. Escribir el sistema nuevo sin forma de medirlo es cómo se llega a tener un Calm
-Score que lleva meses sin medir calma (H1).
+**Lo inmediato: R12, el experimento del círculo**, previsto para el 2026-08-26 en cuanto haya diadema
+disponible. Responde a la pregunta de la que dependen D8, D9 y R11 —¿puede una persona mover una señal a
+voluntad, y cuál?— y de paso construye el corpus de grabación que R11 necesitaba igualmente. La aplicación de
+grabación **se puede montar sin diadema**; sólo la sesión requiere hardware.
+
+**Después, la Ronda 0.** No empezar por el encargo nuevo: primero el orden documental, y después la red de
+sondas. Escribir el sistema nuevo sin forma de medirlo es cómo se llega a tener un Calm Score que lleva meses
+sin medir calma (H1).
 
 **Alcance actual: dos usuarios simultáneos** (P1 y P2), como hasta ahora. Crecer a más usuarios es
 **arquitectura futura**, está descrito al final de este documento y **no se implementa en ninguna de las
@@ -42,14 +47,16 @@ incluye 75 sesiones fabricadas (H3). No son fallos de transporte; son fallos de 
 
 | | **Camino A — entregar antes** | **Camino B — validez antes** |
 |---|---|---|
-| Orden | R0 → R1 → R2 → R3 → R4 → R5 → R6 → R7 → R8 → R11 | R0 → R1 → R7 → R8 → R11 → luego el resto |
+| Orden | R12 → R0 → R1 → R13 → R2 → R3 → R4 → R5 → R6 → R7 → R8 → R11 | R12 → R0 → R1 → R7 → R8 → R11 → luego el resto |
 | Qué se consigue pronto | Un sistema completo, verificable y ordenado, que transporta y registra bien | Un índice de calma que se puede defender |
 | Qué se asume | Durante un tiempo se registra y se envía un Calm Score y un pulso que no son válidos. Las filas quedan marcadas y se pueden descartar después | La instalación tarda más en tener CSV, IP persistente y recuperación ante caídas |
 
-En los dos casos **R11 es el final de la cadena**: es la ronda que define qué se mide cuando se dice «calma» y
-lo demuestra. R7 y R8 son sus prerrequisitos —le dan pulso y bandas de verdad—, pero por sí solos no producen
-un índice defendible. La ADR de D8 y el protocolo de validación se pueden escribir en cualquier momento,
-porque son decisión y diseño, no código.
+**R12 va primero en los dos caminos**, porque su resultado condiciona el resto: hasta saber qué señal se puede
+mover a voluntad, no se sabe con qué se mueve la esfera ni qué entra en el índice. Y en los dos casos **R11 es
+el final de la cadena**: es la ronda que define qué se mide cuando se dice «calma» y lo demuestra. R7 y R8 son
+sus prerrequisitos —le dan pulso y bandas de verdad—, pero por sí solos no producen un índice defendible. Las
+ADR de D8, D9 y D10 y el protocolo de validación se pueden escribir en cualquier momento, porque son decisión
+y diseño, no código.
 
 **Recomendación:** camino A **si hay una fecha de exhibición cerca**, porque R2–R6 son los que hacen que la
 instalación no se rompa en vivo; camino B si lo próximo es publicar o defender resultados. Es una decisión del
@@ -92,6 +99,61 @@ renegociarlo después.
 - [ ] Verificar que la sonda **sabe fallar**: ejecutarla contra el código actual y comprobar que caza el
       problema. Una sonda que pasa siempre no vale.
 
+### R12 · El experimento del círculo: ¿hay control voluntario? — encargo del director
+
+**Requiere la diadema.** Previsto para el 2026-08-26. Leer la sección 5.10 del análisis antes de montarlo.
+
+Zanja la pregunta de fondo: ¿puede una persona mover una señal **a voluntad**, y cuál? El resultado
+condiciona D8, D9 y R11. Cualquier resultado es informativo, así que no se puede desperdiciar.
+
+**Montar la grabación (se puede hacer sin diadema)**
+
+- [ ] Aplicación web con un círculo que **NO responde**: lazo abierto, sólo graba. Si reacciona mientras se
+      intenta, la persona se adapta a él y deja de poder distinguirse quién mueve a quién.
+- [ ] Grabar con **un único reloj**: los cuatro canales de EEG en crudo, PPG, acelerómetro y estado del clic.
+      Si el clic y el EEG van por relojes distintos, no hay análisis posible.
+- [ ] Marcar con **un clic para empezar y otro para terminar**, no manteniendo apretado: sostener el botón es
+      tensión muscular que puede filtrarse a la señal.
+- [ ] Fase 1, con señal en pantalla: alterna «ACHICAR» 20 s / «DESCANSO» 20 s, quince veces (~10 min).
+- [ ] Fase 2, libre, sin señal: se marca cuando se quiera (~5 min).
+
+**Analizar**
+
+- [ ] Guion aparte que trocea en 250 ms y calcula: amplitud general por canal, alfa relativa, beta relativa,
+      alfa/beta, potencia >30 Hz, movimiento y ritmo cardíaco.
+- [ ] Correlacionar cada una con el clic **probando retardos de −2 a +5 s**. La intención precede a la señal y
+      no se sabe cuánto.
+- [ ] **Criterio de azar, obligatorio:** desplazar la serie de clics en el tiempo al azar y recalcular, 200
+      veces. La correlación real tiene que superar al 95 % de esa distribución. **Sin esto la prueba no sabe
+      fallar** y siempre «encuentra» algo.
+- [ ] Escribir el guion de análisis **antes** de mirar los datos.
+
+**Concluir**
+
+- [ ] Anotar **con qué** correlaciona, no sólo si correlaciona. La tabla de interpretación está en 5.10:
+      amplitud general → músculo; alfa relativa limpia → control cortical real; acelerómetro → movimiento de
+      cabeza; nada → hay que tirar de actos deliberados.
+- [ ] Anotar el **retardo del pico**: es el presupuesto de latencia de la esfera.
+- [ ] Guardar las grabaciones etiquetadas: son el **corpus que R11 necesita** para `probe-calm`. Una sola
+      construcción sirve para las dos cosas.
+
+### R13 · La capa rápida: quietud física — D9
+
+Lo que hace que la esfera se sienta viva. Barata: la señal **ya está calculada** en el código.
+
+- [ ] **Escribir la ADR de D9.** Dos señales, dos nombres, dos destinos: `physical_stillness` para la
+      experiencia, `calm_index` para el registro.
+- [ ] Sacar la capa rápida de `avgPower` (`soul-charger-admin.html:1620`), que es una estimación honesta de
+      amplitud general y lo único del pipeline de señal que mide algo real. Por electrodo, normalizada contra
+      el baseline del participante e invertida.
+- [ ] Usar **AF7 y AF8**, los frontales: para el índice de calma son los peores por contaminarse de músculo, y
+      para esto son los mejores por la misma razón.
+- [ ] **Sin el suavizado de 5,75 s.** `MA_WINDOW = 115` a 20 Hz mata cualquier sensación de control. La capa
+      rápida necesita su propia ruta; el transporte no es el cuello de botella.
+- [ ] Llamarla por su nombre en la interfaz y en el CSV: es **quietud física**, no estado de calma.
+- [ ] **No mezclarla nunca con el índice de calma.** Ver el aviso de 5.8: el índice rechaza el artefacto
+      muscular y la esfera responde gracias a él. Es la misma magnitud usada al revés.
+
 ### R2 · La IP de la gafa — H6
 
 - [ ] Persistir IP y puerto por panel en `localStorage` y **dejar de sobrescribirlos** en el constructor
@@ -133,6 +195,9 @@ Es la ronda que más protege la instalación en vivo.
       Recomendación: direcciones nuevas dedicadas, dejando `/muse/data` intacto.
 - [ ] Añadir `/muse/calm` (`f`, 0–1), `/muse/heart_rate` (`f`) y `/muse/sensor_active` (`i`, 0/1).
       `osc.js` soporta el tipo entero.
+- [ ] Añadir también **`/muse/stillness`** (`f`, 0–1), la capa rápida de R13. Son dos datos distintos con
+      latencias distintas y **no deben fundirse en uno** (D9). Que vayan desde el principio evita renegociar
+      el contrato con Unreal más adelante.
 - [ ] Pasar los tres por `safeFloat()` o su equivalente entero: el escudo de NaN existe por un fallo real
       (`backend/server.js:73-79`).
 - [ ] **No modificar la longitud del arreglo de 18 floats.** Rompe el Blueprint de Unreal.
@@ -221,6 +286,12 @@ direcciones. Hacerlo mucho más tarde obliga a renegociar el contrato con la gaf
 La base de todo lo demás: da la materia prima que R11 compone. Leer H1 entero, y la sección 5.4 del análisis
 para el detalle del cálculo.
 
+- [ ] **Decidir D10 primero:** `muse-js` sólo entrega datos **crudos** —verificado en el bundle—, así que las
+      bandas hay que calcularlas. La alternativa es la app de Muse por OSC, que las da hechas más la calidad
+      de contacto. Ver la tabla de 5.9: para el registro de investigación sólo sirve la vía propia, porque
+      `mellow` es una caja negra.
+- [ ] Usar la app de Muse como **referencia independiente** para validar el cálculo propio: si las bandas se
+      mueven igual ante las mismas maniobras, es una comprobación que no depende del código propio.
 - [ ] Decidir D2: FFT propia sobre `eegReadings` o librería de procesado. Anotar el coste en CPU y latencia.
 - [ ] **Separar por electrodo.** Acumular en un búfer por canal usando el campo `electrode`, que hoy se ignora
       (H1, punto 3): ahora mismo TP9, AF7, AF8 y TP10 caen mezclados en la misma variable.
@@ -289,7 +360,12 @@ Depende de R7 (PPG real) y R8 (bandas reales). La ADR y el protocolo se pueden e
 - [ ] Informar con **tamaño del efecto**, no con impresiones: «d = 1,4; separa en 9 de 10 repeticiones».
 - [ ] Guardar las grabaciones etiquetadas como corpus de regresión y montar **`probe-calm`**, que las
       reproduce y exige una separación mínima. Mientras ese corpus no exista, **el índice no está verificado y
-      se dice así**, no se cierra por comodidad.
+      se dice así**, no se cierra por comodidad. La infraestructura de grabación sale de R12.
+- [ ] Incorporar lo que haya dicho R12: si el control voluntario resultó ser muscular, **el índice no debe
+      responder a él** y hay que comprobar que no lo hace.
+- [ ] Dejar escrito —en `CLAUDE.md` y en el código— que **la esfera no se mueve con este índice**, sino con la
+      capa rápida de R13, y por qué (D9). Es justo el tipo de cosa que dentro de seis meses alguien «arregla»
+      sin saber que estaba así a propósito.
 
 **Que el dato siga siendo defendible dentro de seis meses**
 

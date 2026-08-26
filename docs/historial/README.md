@@ -8,4 +8,4 @@ funciona) y `docs/NEXT.md` (qué falta).
 
 | Documento | Qué recoge |
 |---|---|
-| `2026-08-25-analisis-para-traspaso.md` | Lectura completa del código antes de incorporar a otra persona. Ocho hallazgos con `fichero:línea`, el contraste de los requisitos nuevos contra lo que hay, las cinco decisiones pendientes (D1–D5) y cómo se verifica el proyecto. Es la base de `docs/NEXT.md`. |
+| `2026-08-25-analisis-para-traspaso.md` | Lectura completa del código antes de incorporar a otra persona. Nueve hallazgos con `fichero:línea`, el contraste de los requisitos nuevos contra lo que hay, diez decisiones pendientes (D1–D10), la investigación sobre qué medir para hablar de calma (sección 5, con el protocolo de validación y el experimento del círculo) y cómo se verifica el proyecto. Es la base de `docs/NEXT.md`. |

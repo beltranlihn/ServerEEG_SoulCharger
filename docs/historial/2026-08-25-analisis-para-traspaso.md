@@ -465,9 +465,145 @@ No hay que tirarlo todo. **La arquitectura actual es correcta y lo que falla es 
 - Lo que se retira, y se archiva en `_backup/deprecated/`, son las pseudo-bandas `(avgPower · k) % 1.0` y el
   pulso `70 + (avgPower % 30)`.
 
+### 5.8 Dos señales para dos usos: agencia y estado
+
+Aportación del director, a partir de una instalación anterior que sí funcionaba. Hay que separar dos cosas que
+se confunden y que tienen requisitos **opuestos**:
+
+| | **Agencia** — «yo muevo esto» | **Estado** — «esto refleja cómo estoy» |
+|---|---|---|
+| Latencia tolerable | Menos de ~200–300 ms, o se pierde la sensación de control | Segundos; conviene que no tiemble |
+| Señal | Amplitud general y EMG: relajación **muscular** | Alfa/beta relativas y RMSSD: estado cortical y autonómico |
+| Ventana | Ninguna, muestra a muestra | 2 s con solape, más suavizado |
+| Para qué sirve | Mover la esfera | El registro de investigación |
+| Se puede defender en un informe | No hace falta | Obligatorio |
+
+**Por qué la capa rápida funciona.** En una instalación previa se enviaban las señales normalizadas de la app
+de Muse y, al relajarse, **bajaban todas las bandas a la vez**. Eso no es un fenómeno cortical: si lo fuera,
+el alfa habría subido mientras el resto bajaba. Que baje todo junto indica que lo que mandaba era la caída del
+nivel general, dominado por músculo —mandíbula, frente, cuello, movimiento ocular— en una diadema seca.
+
+**Y eso es una señal legítima, no un error.** Relajar la musculatura es parte de relajarse. Tiene tres
+propiedades que el alfa no tiene: es enorme frente al fondo, es inmediata, y funciona con cualquiera sin
+entrenamiento. Para una instalación es justo lo que se necesita. Lo único obligatorio es **llamarla por su
+nombre**: es *quietud física*, no *estado de calma*.
+
+**Ya está calculada en el código.** `const avgPower = samples.reduce((acc, v) => acc + Math.abs(v), 0) /
+samples.length` (`soul-charger-admin.html:1620`) es una estimación honesta de amplitud general, y es lo único
+del pipeline de señal que mide algo real. El fallo de H1 es todo lo que se hace con ella después. Normalizarla
+contra el baseline del participante e invertirla da la capa rápida **sin FFT, sin app de Muse y sin esperar a
+R8**: llega cada 47 ms, que es la cadencia de los paquetes de EEG.
+
+Para esto conviene usar **AF7 y AF8**, los frontales — que para el índice de calma son los peores por
+contaminarse de músculo, y para esto son los mejores por exactamente la misma razón.
+
+> **⚠️ La trampa que hay que evitar.** El índice de calma **rechaza** las ventanas con artefacto muscular. La
+> esfera responde **gracias** a ese artefacto. Es la misma magnitud física usada al revés. Si se intenta que
+> un solo número sirva para las dos cosas, al mejorar la validez la esfera se queda muerta, y al hacerla
+> responder el registro se llena de tensión mandibular etiquetada como calma. **Tienen que ser dos señales
+> separadas desde el origen**, no la misma con distinto suavizado.
+
+**D9 · Dos señales, dos nombres, dos destinos.** `physical_stillness` para la experiencia y `calm_index` para
+el registro. Se envían como floats distintos (R4) y se guardan en columnas distintas (R5).
+
+### 5.9 De dónde salen las bandas: dos arquitecturas posibles
+
+**Verificado:** `vendor/muse-js.bundle.js` sólo expone datos **crudos** — `eegReadings`, `ppgReadings`,
+`accelerometerData`, `gyroscopeData`, `telemetryData`. No hay bandas calculadas, ni calidad de contacto, ni
+métricas derivadas. El procesamiento de Muse vive en su SDK, no en el firmware de la diadema.
+
+Eso explica el origen de H1: alguien eligió la vía del navegador y se quedó sin el procesamiento, y las
+pseudo-bandas son el parche.
+
+Existe una segunda vía, la que se usó en la instalación anterior: **la app de Muse enviando OSC** (Muse
+Direct, Mind Monitor o MuseIO), que manda las bandas ya calculadas a unos 10 Hz, más calidad de contacto por
+electrodo y métricas propias tipo `mellow` o `concentration`.
+
+| | **A · Web Bluetooth propio** (lo actual) | **B · App de Muse por OSC** |
+|---|---|---|
+| Trabajo pendiente | Implementar el cálculo espectral (R8) | Funciona prácticamente ya |
+| Equipo por usuario | Diadema y navegador | Diadema **más un móvil o app de escritorio por cada una** |
+| Calidad de contacto | No la hay; hay que estimarla | La da el propio flujo, y es justo lo que falta hoy |
+| Defender el dato | Fórmula propia, versionable y explicable | `mellow` es una **caja negra** sin documentar |
+| Dependencias | Ninguna; funciona sin conexión | Software de terceros que puede cambiar o desaparecer |
+| Escala a N usuarios (D7) | Limitado por las conexiones GATT del navegador | Limitado por el número de móviles |
+
+**D10 · Qué vía se usa, y para qué.** No tienen por qué ser excluyentes:
+
+- Para la **esfera**, cualquiera de las dos vale. Una caja negra es aceptable en una experiencia.
+- Para el **registro de investigación**, sólo sirve A: no se puede publicar un número cuya fórmula se
+  desconoce.
+- El uso más valioso de B es como **referencia independiente** para validar el cálculo propio. Si las bandas
+  de A se mueven como las de B ante las mismas maniobras, es una comprobación que no depende del código
+  propio. No es verdad absoluta —comparar dos implementaciones no verifica ninguna si comparten el error—
+  pero combinada con la prueba de señal sintética (5.5, prueba E) es una red sólida.
+
+**Pendiente de confirmar con el director:** si en aquella instalación se enviaban las bandas
+(`alpha_relative`, `beta_relative`) o el valor `mellow` ya compuesto. Lo primero es reproducible; lo segundo
+es propiedad de Muse.
+
+### 5.10 El experimento del círculo: ¿hay control voluntario?
+
+Propuesta del director, y es el experimento que zanja la discusión anterior. La idea: una aplicación web con
+un círculo; cada vez que la persona **intenta** achicarlo, marca con el ratón. Después se busca correlación
+entre esa marca y las señales.
+
+Es un **experimento de etiquetado**: el clic es una referencia temporal de la intención, sincronizada con la
+señal. Es lo que falta para dejar de decidir por intuición.
+
+**Tres fallos que lo invalidarían, con su arreglo:**
+
+1. **El círculo no debe responder durante la prueba.** Si reacciona mientras lo intentas, te adaptas a él sin
+   darte cuenta y deja de poder distinguirse si mueves la señal o reaccionas a ella. **Lazo abierto**: sólo se
+   graba. La versión que responde viene después.
+2. **Hace falta un criterio de azar.** Con datos suficientes casi siempre aparece «algo». Se resuelve gratis:
+   **desplazar la serie de clics en el tiempo** al azar y recalcular, 200 veces. Eso da la distribución de lo
+   que sale por casualidad, y la correlación real tiene que superar al 95 % de ella. **Sin esto la prueba no
+   sabe fallar**, y siempre «encuentra» algo.
+3. **El clic contamina.** Mantener el botón apretado es tensión muscular sostenida que puede filtrarse. Mejor
+   **un clic para empezar y otro para terminar**, y en la primera fase que sea la pantalla la que marque el
+   turno, para que la etiqueta no dependa de acordarse.
+
+**Protocolo.** Fase 1, con señal en pantalla (~10 min): alterna «ACHICAR» 20 s / «DESCANSO» 20 s, quince
+veces, confirmando con el clic. Fase 2, libre (~5 min): sin señal, se marca cuando se quiera; se parece más a
+la instalación real.
+
+**Qué se graba**, todo con **el mismo reloj**: los cuatro canales de EEG en crudo, el PPG, el acelerómetro y
+el estado del clic. Si el clic y el EEG van por relojes distintos, no hay análisis posible.
+
+**Qué se analiza**, en tramos de 250 ms: amplitud general por canal, alfa relativa, beta relativa, alfa/beta,
+potencia por encima de 30 Hz, movimiento y ritmo cardíaco. Cada una contra el clic, **probando retardos de −2
+a +5 s**, porque la intención precede a la señal y no se sabe cuánto.
+
+**Lo valioso no es «hay correlación», es con QUÉ correlaciona:**
+
+| Si lo que correlaciona es… | Entonces… |
+|---|---|
+| Amplitud general o potencia >30 Hz | Es relajación muscular. Perfecto para la esfera, y se le pone ese nombre (D9) |
+| Alfa relativa, tras rechazar artefactos | Hay control cortical real. Resultado excelente, y cambia lo que se puede prometer |
+| El acelerómetro | Se está moviendo la cabeza sin darse cuenta |
+| Nada supera al azar | Se evita construir la instalación sobre una ilusión, y se tira de actos deliberados: cerrar los ojos, mandíbula |
+
+**El retardo del pico da gratis el otro dato que hacía falta:** cuánto puede tardar la esfera en responder sin
+sentirse muerta.
+
+**Bonus:** la aplicación de grabación es, casi tal cual, el **corpus etiquetado que R11 necesita** para
+validar el índice. Una sola construcción sirve para las dos cosas, y no depende de R8: se graba crudo y se
+analiza después con un guion.
+
+---
+
+**Resumen de decisiones de esta sección.**
+
 **D8 · La definición operativa del índice de calma.** Es la decisión más cara de revertir del proyecto —una
 vez publicados resultados, cambiar la fórmula invalida lo anterior— y por eso necesita ADR propia, escrita
 **antes** de programar y **revisada después** de la validación, con los números medidos dentro.
+
+**D9 · Dos señales para dos usos** (5.8): quietud física para la experiencia, índice de calma para el
+registro. Separadas desde el origen.
+
+**D10 · Qué vía alimenta las bandas** (5.9): Web Bluetooth propio, app de Muse, o las dos con papeles
+distintos.
 
 ---
 
