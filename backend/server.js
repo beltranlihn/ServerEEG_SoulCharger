@@ -49,7 +49,7 @@ const wss = new WebSocket.Server({ port: WS_PORT });
 
 console.log("");
 console.log("╔══════════════════════════════════════════════════════════════╗");
-console.log("║   RELAY OSC v4 — tres direcciones dedicadas (ADR-0005)       ║");
+console.log("║   RELAY OSC v5 — 4 direcciones (ADR-0005 + ADR-0006)            ║");
 console.log("╠══════════════════════════════════════════════════════════════╣");
 console.log(`║   WS port:    ${WS_PORT}                                           ║`);
 console.log("║   Emite:      /muse/calm (f)          lento, estado          ║");
