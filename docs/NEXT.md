@@ -13,8 +13,8 @@ Ordenada de **rápido a complejo**. Se tacha lo cerrado; se poda lo que deje de 
 ## EMPEZAR POR AQUÍ
 
 **Estado a 2026-08-28.** Cerradas **R0** (orden documental), **R1** (red de sondas), **R4** (contrato OSC
-nuevo), **R13** (capa rápida de quietud), **R15** (cadencia a 60 Hz y ventanas por tiempo) y **R16** (retirada del
-arreglo de 18 floats). El
+nuevo), **R13** (capa rápida de quietud), **R15** (cadencia a 60 Hz y ventanas por tiempo), **R16** (retirada del
+arreglo de 18 floats) y **R17** (monitor OSC en vivo). El
 relay emite hoy **cuatro direcciones OSC** a 60 Hz —calma, pulso, sensor y **quietud física** (R13)—
 verificadas por `npm run probe` y probadas contra TouchDesigner. Sigue **sin probarse contra Unreal** desde
 este repositorio.
@@ -186,6 +186,26 @@ condiciona D8, D9 y R11. Cualquier resultado es informativo, así que no se pued
 - [ ] Anotar el **retardo del pico**: es el presupuesto de latencia de la esfera.
 - [ ] Guardar las grabaciones etiquetadas: son el **corpus que R11 necesita** para `probe-calm`. Una sola
       construcción sirve para las dos cosas.
+
+### R17 · Monitor OSC en vivo bajo cada panel — ✅ CERRADA (2026-08-28)
+
+Encargo del director: ver en la interfaz los datos que se envían, con gráficas, y **comprobar que va en
+tiempo real**.
+
+- [x] Tres osciloscopias por panel: `Calm`, `Heart rate` y `Stillness`, cada una con su dirección OSC escrita
+      al lado, para que se vea qué sale por cable y no un valor interno.
+- [x] Se alimentan **en el mismo punto donde se emite**, no desde el estado interno: lo que se ve es lo que
+      sale.
+- [x] **Cadencia real en Hz** medida sobre los envíos del último segundo. Por debajo de 30 se pinta en rojo:
+      es el aviso del estrangulamiento que hasta ahora no existía.
+- [x] Eje X por **tiempo**, no por muestra: si el navegador se atasca, la línea se ve congelarse en vez de
+      disimularlo.
+- [x] Canvas plano en vez de Chart.js, para no agravar R14. Dibujo por `requestAnimationFrame`; cifras por
+      `setInterval`, que sobrevive a la pestaña oculta.
+- [ ] **Sin verificar:** el dibujo del canvas. Las cifras y la cadencia sí se comprobaron en vivo (mostró
+      `2 Hz` en rojo con la pestaña oculta, que es la conducta correcta), pero `requestAnimationFrame` no
+      dispara sin ventana visible, así que las curvas están sin mirar.
+- [ ] Falta llevarlo a `soul-charger-app.html`, que tiene otra interfaz (la esfera) y un solo usuario.
 
 ### R14 · Coste de dibujo de la gráfica a 60 Hz — pendiente de medir
 

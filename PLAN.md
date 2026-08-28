@@ -7,6 +7,46 @@ hizo.
 
 ---
 
+## R17 · Monitor OSC en vivo — 2026-08-28 — Ver en la interfaz lo que sale por cable
+
+Encargo del director: *«debiera mostrarnos abajo de cada usuario los datos que se están enviando… pero
+necesito ver en la UX que eso está real time»*.
+
+**Qué se hizo.** Bajo cada panel, un bloque **OSC OUT** con tres osciloscopias —`Calm`, `Heart rate` y
+`Stillness`, cada una con su dirección OSC escrita al lado— más la **cadencia real en Hz**, medida contando
+los envíos del último segundo.
+
+Tres decisiones que no son cosméticas:
+
+1. **Se alimentan en el punto de envío**, no desde el estado interno del panel. Lo que se ve en pantalla es
+   lo que sale por el cable; si divergieran, la interfaz estaría mintiendo.
+2. **El eje X es tiempo, no índice de muestra.** Si el navegador se atasca, la línea se ve congelarse. Una
+   gráfica por muestras lo disimularía, que es exactamente el fallo mudo que queremos que se note.
+3. **Canvas plano, no Chart.js.** Seis gráficas más de Chart.js a 60 Hz agravarían el coste de dibujo que
+   `R14` dejó abierto para medir.
+
+**Medido.** Con el panel simulando y la pestaña **oculta**, la interfaz mostró `2 Hz` **en rojo**, y las
+cifras siguieron actualizándose: `hr 79 bpm`, `stillness 0.500`, `calm 0.000` durante la calibración. Es
+justo la conducta buscada: el indicador **delata** el estrangulamiento en vez de esconderlo.
+
+**Trampas encontradas.** La primera versión ponía las cifras dentro del bucle de `requestAnimationFrame`.
+Como rAF **se detiene con la pestaña oculta**, los números se habrían quedado congelados mostrando valores
+viejos con pinta de actuales — el mismo patrón de fallo mudo que veníamos cazando, reintroducido por la
+puerta de la interfaz. Se separó: rAF sólo dibuja; las cifras y la cadencia van por `setInterval`, que
+sobrevive a que la ventana se oculte y es lo que permite ver la caída en rojo.
+
+Colateral útil: esto cubre en parte el aviso que el gotcha del estrangulamiento daba por pendiente. Ya no hay
+que deducirlo de los huecos entre mensajes; se lee en pantalla.
+
+**Sin verificar.** El **dibujo del canvas**. Las cifras y la cadencia sí se comprobaron en vivo, pero
+`requestAnimationFrame` no dispara sin ventana visible, así que las curvas están escritas y sin mirar. Es
+literalmente el caso de «el material que se fabrica y no se mira»: queda anotado hasta que alguien lo abra.
+
+**Pendiente.** Llevarlo a `soul-charger-app.html`, que tiene otra interfaz —la esfera, un solo usuario— y no
+es un gemelo directo de este bloque.
+
+---
+
 ## R13 · La capa rápida — 2026-08-28 — Quietud física, separada del índice de calma
 
 Encargo del director: *«¿te acuerdas de lo que habíamos hablado de armar una señal que fuera más real time?

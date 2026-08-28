@@ -421,6 +421,29 @@ body.light-mode .calm-badge-label,
 body.light-mode .big-circle-label,
 body.light-mode .small-circle-label { color: #6E6E73; }
 body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30); }
+/* ── [R17] OSC OUT: lo que sale por cable, en vivo ─────────────────────────── */
+.osc-out { background:rgba(4,6,18,.75); border:1px solid var(--border); padding:.6rem .8rem; margin-bottom:.85rem; flex-shrink:0; }
+.osc-out-head { display:flex; justify-content:space-between; align-items:center; padding-bottom:.4rem; margin-bottom:.5rem; border-bottom:1px solid var(--border); }
+.osc-out-title { font-size:.62rem; letter-spacing:.15em; color:var(--accent); text-transform:uppercase; }
+.osc-rate { font-family:var(--font-mono); font-size:.58rem; letter-spacing:.08em; color:var(--text-sec); display:flex; align-items:center; gap:.4rem; }
+.osc-rate.live { color:var(--accent); }
+.osc-rate.slow { color:var(--red); }
+.rate-dot { width:6px; height:6px; border-radius:50%; background:var(--text-sec); transition:background .08s, opacity .08s; opacity:.35; }
+.osc-rate.live .rate-dot { background:var(--accent); }
+.osc-rate.slow .rate-dot { background:var(--red); }
+.rate-dot.beat { opacity:1; }
+
+.sig + .sig { margin-top:.5rem; }
+.sig-head { display:flex; align-items:baseline; gap:.5rem; margin-bottom:.15rem; }
+.sig-name { font-size:.6rem; letter-spacing:.14em; color:var(--text-pri); text-transform:uppercase; }
+.sig-addr { font-family:var(--font-mono); font-size:.52rem; color:var(--text-sec); }
+.sig-sub  { font-size:.52rem; color:var(--text-sec); font-style:italic; }
+.sig-val  { margin-left:auto; font-family:var(--font-mono); font-size:.78rem; font-weight:600; color:var(--accent); }
+.sig-val.stale { color:var(--text-sec); }
+.sig-canvas { display:block; width:100%; height:38px; background:rgba(0,0,0,.30); border:1px solid rgba(74,127,255,.10); }
+.sig.fast .sig-name { color:#7CE0C8; }
+.sig.fast .sig-val  { color:#7CE0C8; }
+
     </style>
     <script src="vendor/chart.umd.min.js"></script>
 </head>
@@ -462,6 +485,24 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
             <div class="progress-track" id="progress-bar-container-1">
                 <div class="progress-fill" id="progress-bar-1"></div>
             </div>
+            <div class="osc-out">
+                <div class="osc-out-head">
+                    <span class="osc-out-title">OSC OUT — live</span>
+                    <span class="osc-rate" id="osc-rate-1"><span class="rate-dot" id="rate-dot-1"></span><span id="osc-rate-val-1">idle</span></span>
+                </div>
+                <div class="sig">
+                    <div class="sig-head"><span class="sig-name">Calm</span><span class="sig-addr">/muse/calm</span><span class="sig-sub">state · slow</span><span class="sig-val" id="sig-calm-1">—</span></div>
+                    <canvas class="sig-canvas" id="cv-calm-1"></canvas>
+                </div>
+                <div class="sig">
+                    <div class="sig-head"><span class="sig-name">Heart rate</span><span class="sig-addr">/muse/heart_rate</span><span class="sig-sub">bpm</span><span class="sig-val" id="sig-hr-1">—</span></div>
+                    <canvas class="sig-canvas" id="cv-hr-1"></canvas>
+                </div>
+                <div class="sig fast">
+                    <div class="sig-head"><span class="sig-name">Stillness</span><span class="sig-addr">/muse/stillness</span><span class="sig-sub">agency · fast</span><span class="sig-val" id="sig-still-1">—</span></div>
+                    <canvas class="sig-canvas" id="cv-still-1"></canvas>
+                </div>
+            </div>
             <div class="dev-panel">
                 <div class="dev-header">
                     <h3>OSC Target — Quest 1</h3>
@@ -495,6 +536,24 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
             </div>
             <div class="progress-track" id="progress-bar-container-2">
                 <div class="progress-fill" id="progress-bar-2"></div>
+            </div>
+            <div class="osc-out">
+                <div class="osc-out-head">
+                    <span class="osc-out-title">OSC OUT — live</span>
+                    <span class="osc-rate" id="osc-rate-2"><span class="rate-dot" id="rate-dot-2"></span><span id="osc-rate-val-2">idle</span></span>
+                </div>
+                <div class="sig">
+                    <div class="sig-head"><span class="sig-name">Calm</span><span class="sig-addr">/muse/calm</span><span class="sig-sub">state · slow</span><span class="sig-val" id="sig-calm-2">—</span></div>
+                    <canvas class="sig-canvas" id="cv-calm-2"></canvas>
+                </div>
+                <div class="sig">
+                    <div class="sig-head"><span class="sig-name">Heart rate</span><span class="sig-addr">/muse/heart_rate</span><span class="sig-sub">bpm</span><span class="sig-val" id="sig-hr-2">—</span></div>
+                    <canvas class="sig-canvas" id="cv-hr-2"></canvas>
+                </div>
+                <div class="sig fast">
+                    <div class="sig-head"><span class="sig-name">Stillness</span><span class="sig-addr">/muse/stillness</span><span class="sig-sub">agency · fast</span><span class="sig-val" id="sig-still-2">—</span></div>
+                    <canvas class="sig-canvas" id="cv-still-2"></canvas>
+                </div>
             </div>
             <div class="dev-panel">
                 <div class="dev-header">
@@ -641,6 +700,77 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
     const STILLNESS_ELECTRODES   = [1, 2];  // AF7 y AF8 (TP9=0, AF7=1, AF8=2, TP10=3)
     const STILLNESS_TAU_MS       = 120;     // constante de tiempo del alisado, en ms
     const STILLNESS_Z_CLAMP      = 2.5;     // recorte del z-score antes de normalizar
+
+
+    // ── [R17] Osciloscopios de lo que sale por OSC ────────────────────────────
+    // Canvas plano, NO Chart.js: seis gráficas más de Chart.js a 60 Hz agravarían
+    // el coste de dibujo que R14 dejó abierto para medir.
+    //
+    // El eje X es TIEMPO, no índice de muestra. Es deliberado: si el navegador
+    // estrangula la pestaña, la línea se ve congelarse. Una gráfica por muestras
+    // lo disimularía, que es justo el fallo mudo que queremos que se note.
+    const SCOPE_WINDOW_MS = 8000;
+
+    class SignalScope {
+        constructor(canvasId, { min, max, color, decimals = 2, unit = '' }) {
+            this.cv = document.getElementById(canvasId);
+            this.min = min; this.max = max; this.color = color;
+            this.decimals = decimals; this.unit = unit;
+            this.pts = [];            // {t, v}
+        }
+        push(v, t) {
+            if (!this.cv || v === null || v === undefined || Number.isNaN(v)) return;
+            this.pts.push({ t, v });
+            const corte = t - SCOPE_WINDOW_MS;
+            while (this.pts.length && this.pts[0].t < corte) this.pts.shift();
+        }
+        draw(now) {
+            const cv = this.cv; if (!cv) return;
+            // Ajuste al tamaño real en pantalla, con densidad de píxeles
+            const r = cv.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            const w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr));
+            if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+            const g = cv.getContext('2d');
+            g.clearRect(0, 0, w, h);
+
+            // Línea de referencia a media escala
+            g.strokeStyle = 'rgba(74,127,255,.10)'; g.lineWidth = 1;
+            g.beginPath(); g.moveTo(0, h / 2); g.lineTo(w, h / 2); g.stroke();
+
+            if (this.pts.length < 2) return;
+            const span = this.max - this.min || 1;
+            const x = (t) => w - ((now - t) / SCOPE_WINDOW_MS) * w;
+            const y = (v) => h - ((Math.min(Math.max(v, this.min), this.max) - this.min) / span) * (h - 4) - 2;
+
+            g.strokeStyle = this.color; g.lineWidth = Math.max(1, dpr * 1.2);
+            g.lineJoin = 'round'; g.beginPath();
+            g.moveTo(x(this.pts[0].t), y(this.pts[0].v));
+            for (let i = 1; i < this.pts.length; i++) g.lineTo(x(this.pts[i].t), y(this.pts[i].v));
+            g.stroke();
+
+            // Cabeza de la señal: si se congela, se ve quedarse atrás
+            const last = this.pts[this.pts.length - 1];
+            g.fillStyle = this.color; g.globalAlpha = .9;
+            g.beginPath(); g.arc(x(last.t), y(last.v), Math.max(1.5, dpr * 1.6), 0, Math.PI * 2); g.fill();
+            g.globalAlpha = 1;
+        }
+        get lastValue() { return this.pts.length ? this.pts[this.pts.length - 1].v : null; }
+    }
+
+    // Un solo bucle de dibujo para todos los paneles. requestAnimationFrame se
+    // detiene con la pestaña oculta — correcto: la interfaz no necesita dibujar
+    // a ciegas, y el envío OSC va por su propio setInterval, ajeno a esto.
+    const SCOPES = [];
+    function scopeLoop() {
+        const now = Date.now();
+        for (const p of SCOPES) p.drawScopes(now);
+        requestAnimationFrame(scopeLoop);
+    }
+    requestAnimationFrame(scopeLoop);
+    // Las cifras por su cuenta: sobreviven a que la pestaña se oculte y son las
+    // que delatan el estrangulamiento mostrando la cadencia real en rojo.
+    setInterval(() => { const now = Date.now(); for (const p of SCOPES) p.updateReadouts(now); }, 250);
 
     let globalDurationMs = 10000;
     let researchChart = null;
@@ -1169,6 +1299,23 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
             if (this.inpOscIp)   this.inpOscIp.value   = defaultIp;
             if (this.inpOscPort) this.inpOscPort.value  = defaultPort;
 
+            // [R17] Osciloscopios de las tres señales que salen por OSC
+            this.scopes = {
+                calm:  new SignalScope(`cv-calm-${panelId}`,  { min: 0,  max: 1,   color: '#4A7FFF', decimals: 3 }),
+                hr:    new SignalScope(`cv-hr-${panelId}`,    { min: 40, max: 120, color: '#E5B45E', decimals: 0, unit: ' bpm' }),
+                still: new SignalScope(`cv-still-${panelId}`, { min: 0,  max: 1,   color: '#7CE0C8', decimals: 3 }),
+            };
+            this.valEls = {
+                calm:  document.getElementById(`sig-calm-${panelId}`),
+                hr:    document.getElementById(`sig-hr-${panelId}`),
+                still: document.getElementById(`sig-still-${panelId}`),
+            };
+            this.rateEl    = document.getElementById(`osc-rate-${panelId}`);
+            this.rateValEl = document.getElementById(`osc-rate-val-${panelId}`);
+            this.rateDotEl = document.getElementById(`rate-dot-${panelId}`);
+            this.sendStamps = [];   // marcas de los envíos del último segundo
+            SCOPES.push(this);
+
             this.initOSCRelay();
             this.attachListeners();
         }
@@ -1209,6 +1356,38 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
             this.ws.onerror = () => {};
         }
 
+        // [R17] Sólo DIBUJA. Va por requestAnimationFrame, que se detiene con la
+        // pestaña oculta — correcto: no hay que gastar CPU pintando a ciegas.
+        drawScopes(now) {
+            for (const sc of Object.values(this.scopes)) sc.draw(now);
+        }
+
+        // [R17] Cifras y cadencia. Van por setInterval y NO por rAF a propósito:
+        // rAF se para con la pestaña oculta y las cifras se quedarían congeladas
+        // con pinta de actuales, que es el fallo mudo que queremos evitar. Por
+        // aquí, aunque el navegador estrangule, la cadencia se ve caer en rojo.
+        updateReadouts(now) {
+            const corte = now - 1000;
+            while (this.sendStamps.length && this.sendStamps[0] < corte) this.sendStamps.shift();
+            const hz = this.sendStamps.length;
+
+            const activo = this.appState === 'WARMUP' || this.appState === 'CALIBRATING' || this.appState === 'RUNNING';
+            if (this.rateValEl) this.rateValEl.innerText = activo ? `${hz} Hz` : 'idle';
+            // Menos de 30 Hz con el panel activo casi siempre significa que el
+            // navegador estranguló la pestaña (ver gotchas de CLAUDE.md).
+            if (this.rateEl) this.rateEl.className = 'osc-rate' + (activo ? (hz >= 30 ? ' live' : ' slow') : '');
+            if (this.rateDotEl) this.rateDotEl.classList.toggle('beat', hz > 0 && (now % 1000) < 200);
+
+            for (const [k, sc] of Object.entries(this.scopes)) {
+                const el = this.valEls[k];
+                if (!el) continue;
+                const v = sc.lastValue;
+                const fresco = sc.pts.length && (now - sc.pts[sc.pts.length - 1].t) < 500;
+                el.innerText = v === null ? '—' : v.toFixed(sc.decimals) + sc.unit;
+                el.classList.toggle('stale', !fresco);
+            }
+        }
+
         setAppState(state, desc) {
             this.appState = state;
             if (this.indState) this.indState.innerText = state;
@@ -1227,6 +1406,15 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
             if (this.appState === 'RUNNING' && !this.calibTriggerFired) { outCalibCompleted = 1.0; this.calibTriggerFired = true; }
             else if (this.appState !== 'RUNNING') { this.calibTriggerFired = false; }
             const _btOn = this.btForceOff ? 0 : ((this.appState === 'WARMUP' || this.appState === 'CALIBRATING' || this.appState === 'RUNNING') ? 1 : 0);
+            // [R17] Se alimentan las gráficas AQUÍ, en el mismo punto donde se
+            // emite. Así lo que se ve en pantalla es lo que sale por el cable, no
+            // un valor interno que podría divergir del enviado.
+            const tNowScope = Date.now();
+            this.scopes.calm.push(calmScore, tNowScope);
+            this.scopes.hr.push(this.currentBpm, tNowScope);
+            this.scopes.still.push(this.stillness, tNowScope);
+            this.sendStamps.push(tNowScope);
+
             this.ws.send(JSON.stringify({
                 type:'full_telemetry', oscIp:ip, oscPort:port,
                 sensorOn:_btOn, sensorActive:this.sensorActive,
