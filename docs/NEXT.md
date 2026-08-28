@@ -202,9 +202,9 @@ tiempo real**.
       disimularlo.
 - [x] Canvas plano en vez de Chart.js, para no agravar R14. Dibujo por `requestAnimationFrame`; cifras por
       `setInterval`, que sobrevive a la pestaña oculta.
-- [ ] **Sin verificar:** el dibujo del canvas. Las cifras y la cadencia sí se comprobaron en vivo (mostró
-      `2 Hz` en rojo con la pestaña oculta, que es la conducta correcta), pero `requestAnimationFrame` no
-      dispara sin ventana visible, así que las curvas están sin mirar.
+- [x] **Dibujo verificado** (2026-08-28, revisión del director sobre ventana visible): las tres curvas se
+      dibujan, la cadencia marca `63 Hz` en azul, y el contraste visual entre la calma —suave, de loma— y la
+      quietud —nerviosa, con caídas secas— confirma que son señales distintas, como predice ADR-0006.
 - [ ] Falta llevarlo a `soul-charger-app.html`, que tiene otra interfaz (la esfera) y un solo usuario.
 
 ### R18 · Limpieza de la interfaz y ECG — ✅ CERRADA (2026-08-28)
@@ -222,7 +222,8 @@ señales, y mostrar el pulso como electrocardiograma.
       para que el pico R no se pierda por aliasing.
 - [x] Etiquetado **«trace synthesized»** en la interfaz: parece un ECG real y no lo es.
 - [x] Verificado que el layout no recorta: 676 px de contenido en 676 visibles.
-- [ ] **Sin verificar:** el dibujo del canvas, incluido el trazo del ECG. Misma causa que R17.
+- [x] **ECG verificado** (2026-08-28): el trazo sale limpio, con los picos R definidos y el complejo PQRST
+      reconocible a 70 y 75 bpm. Las 8 sub-muestras por tick bastan para que no haya aliasing.
 
 ### R14 · Coste de dibujo de la gráfica a 60 Hz — pendiente de medir
 

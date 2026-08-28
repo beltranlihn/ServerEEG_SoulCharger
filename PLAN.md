@@ -45,8 +45,8 @@ forma de onda dibujada a la frecuencia del bpm. Y el bpm sigue siendo el inventa
 fácil que alguien lo tomara por una medición. Incluso cuando `R7` lea el PPG real, la **forma** seguirá siendo
 sintética salvo que se dibuje explícitamente la onda medida.
 
-**Sin verificar.** El dibujo del canvas, incluido el trazo del ECG. Misma causa que en R17: `requestAnimation
-Frame` no dispara sin ventana visible.
+**Verificado después** (2026-08-28): el trazo del ECG sale limpio, con los picos R definidos y el complejo
+PQRST reconocible a 70 y 75 bpm. Las 8 sub-muestras por tick bastan: no hay aliasing visible.
 
 ---
 
@@ -81,9 +81,10 @@ sobrevive a que la ventana se oculte y es lo que permite ver la caída en rojo.
 Colateral útil: esto cubre en parte el aviso que el gotcha del estrangulamiento daba por pendiente. Ya no hay
 que deducirlo de los huecos entre mensajes; se lee en pantalla.
 
-**Sin verificar.** El **dibujo del canvas**. Las cifras y la cadencia sí se comprobaron en vivo, pero
-`requestAnimationFrame` no dispara sin ventana visible, así que las curvas están escritas y sin mirar. Es
-literalmente el caso de «el material que se fabrica y no se mira»: queda anotado hasta que alguien lo abra.
+**Verificado después** (2026-08-28, el director abrió la ventana): las tres curvas se dibujan, la cadencia
+marca `63 Hz` en azul, y el contraste visual entre calma —suave— y quietud —nerviosa, con caídas secas en los
+picos de tensión— confirma a simple vista que son señales distintas. Cierra el «material fabricado y no
+mirado» que esta entrada dejaba abierto.
 
 **Pendiente.** Llevarlo a `soul-charger-app.html`, que tiene otra interfaz —la esfera, un solo usuario— y no
 es un gemelo directo de este bloque.
