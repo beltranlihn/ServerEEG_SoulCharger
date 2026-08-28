@@ -11,7 +11,7 @@ Muse 2 ──BLE──> muse-js ──eegReadings──> pseudo-bandas ──rat
                                                                      │
                                            WebSocket:3000 ───────────┘
                                                   │
-                                      server.js ──┴──> /muse/data (18 floats) ──UDP:8000──> Unreal
+                                      server.js ──┴──> 3 direcciones OSC ──UDP:8000──> Unreal
 ```
 
 El navegador (Chrome/Edge) hace todo el trabajo de señal: se conecta a la diadema por Web Bluetooth, calcula el índice de calma y lo emite por WebSocket. El **relay** de Node.js sólo transporta: recibe por WebSocket y reenvía por OSC/UDP a la IP configurada. No hay build, ni bundler, ni framework.
@@ -28,7 +28,7 @@ Tres procesos, dos fronteras. La frontera navegador↔relay es un WebSocket; la 
 │  soul-charger-admin.html │        │  backend/server.js   │        │  Unreal / TouchD. │
 │  ─ Web Bluetooth → Muse 2│        │                      │        │                   │
 │  ─ pipeline de señal     │  WS    │  ─ HTTP estático 5500│  OSC   │  ─ Blueprint lee  │
-│  ─ Calm Score + estado   │ ─────> │  ─ WS 3000 → UDP     │ ─────> │    18 floats      │
+│  ─ Calm Score + estado   │ ─────> │  ─ WS 3000 → UDP     │ ─────> │    3 direcciones  │
 │  ─ paneles P1 / P2       │  3000  │  ─ 1 UDPPort/cliente │  8000  │                   │
 │  ─ research (localStorage)│ <───── │  ─ NaN shield        │ <╌╌╌╌╌ │  ─ /unreal/end_.. │
 └─────────────────────────┘        └──────────────────────┘        └───────────────────┘
@@ -41,15 +41,18 @@ Aislamiento por cliente: cada WebSocket abre **su propio `UDPPort`** con su IP/p
 
 *Leer esto antes que ninguna función.*
 
-**El arreglo OSC `/muse/data` — 18 floats, longitud congelada** (ADR `adr-0003`). Unreal lo lee por índice; sólo cuatro posiciones llevan dato, el resto va a `0.0` a propósito:
+**Las tres direcciones OSC** (ADR `adr-0005`). Un mensaje por valor, con su tipo:
 
-| Índice | Unreal | Valor | Rango |
+| Dirección | Tipo | Valor | Rango |
 |---|---|---|---|
-| 13 | `muse/data14` | Calm Score | `0.0`–`1.0` |
-| 14 | `muse/data15` | *(reservado a `heart_rate`; hoy `0.0`, H2)* | — |
-| 15 | `muse/data16` | Progreso de calibración | `0.0`–`1.0` |
-| 16 | `muse/data17` | BT conectado | `1.0`/`0.0` |
-| 17 | `muse/data18` | BT desconectado (complementario del 16) | `1.0`/`0.0` |
+| `/muse/calm` | `f` | Índice de calma | `0.0`–`1.0` |
+| `/muse/heart_rate` | `f` | Ritmo cardíaco | bpm |
+| `/muse/sensor_active` | `i` | Sensor activo | `0` / `1` |
+
+Hasta la ronda `R16` viajaba además `/muse/data`, un arreglo de 18 floats leído por índice cuya longitud
+estaba congelada (`adr-0003`, ya reemplazada). Se retiró al confirmar el director que Unreal consume las
+direcciones con nombre. Con él se fueron el **progreso de calibración** y el **estado del Bluetooth**, que no
+tienen dirección propia: hoy no salen del navegador.
 
 **Sesión de research** (objeto en `localStorage`, clave `soulcharger_sessions`): array de sesiones con panel, `headsetName`, marca de tiempo, delta de calma. Hoy **mezcla reales y sintéticas** sin distinguir origen (H3). El plan (R5) añade una fila CSV por tick con calma, pulso, `sensorActive`, bandas, progreso y **origen del dato** (`real`/`simulado`).
 
@@ -58,7 +61,7 @@ Aislamiento por cliente: cada WebSocket abre **su propio `UDPPort`** con su IP/p
 ## 4. Flujos principales
 
 ### F1 · EEG real → Calm Score → OSC (el camino principal)
-Muse 2 emite `eegReadings` por BLE → `muse-js` los entrega al navegador → el pipeline calcula pseudo-bandas y el ratio de calma en un loop de 50 ms (20 Hz) → la máquina de estados `WARMUP→CALIBRATING→RUNNING` normaliza contra el baseline del participante → el resultado se empaqueta en los 18 floats y se manda por WebSocket → `server.js` lo reenvía por OSC/UDP a la IP del panel → Unreal lo lee por índice.
+Muse 2 emite `eegReadings` por BLE → `muse-js` los entrega al navegador → el pipeline calcula pseudo-bandas y el ratio de calma en un loop de 16,67 ms (60 Hz) → la máquina de estados `WARMUP→CALIBRATING→RUNNING` normaliza contra el baseline del participante → el resultado se manda por WebSocket → `server.js` lo reenvía como tres mensajes OSC/UDP a la IP del panel → Unreal lee cada dirección por su nombre.
 
 ### F2 · Simulación (sin diadema)
 El botón *Simulate* (sólo en el admin, H7) sustituye la fuente real por señales sintéticas (`soul-charger-admin.html:1484-1512`). **Detalle relevante:** en simulación las cuatro bandas *sí* son señales independientes con distinta frecuencia y ruido — la simulación es más realista que el hardware (H1).

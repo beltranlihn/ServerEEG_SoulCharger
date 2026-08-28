@@ -385,8 +385,18 @@ button:disabled { opacity: 0.4; pointer-events: none; }
 import { MuseClient } from './vendor/muse-js.bundle.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const TARGET_CALIBRATION_SAMPLES = 300;  // 15 s at 50 ms
-const MA_WINDOW = 115;
+// Cadencia de telemetría: 60 Hz, alineada con los 60 fps del motor. Subirla NO
+// añade información (el EEG llega a ~21 Hz por canal); la suavidad real se
+// interpola en Unreal.
+//
+// Las ventanas se cierran contra el RELOJ, no contando ticks: setInterval no
+// cumple su promesa (medido ~61,8 Hz en vez de 60) y el navegador lo estrangula
+// en pestañas ocultas, así que contar muestras dejaba la duración al azar.
+const TICK_MS                 = 1000 / 60; // 16.67 ms → 60 Hz (antes 50 ms → 20 Hz)
+const CALIBRATION_SECONDS     = 15;        // tiempo ACTIVO: se pausa si no hay contacto
+const SMOOTHING_SECONDS       = 5.75;      // ventana de la media móvil
+const MIN_CALIBRATION_SAMPLES = 200;       // el tiempo no basta: sin muestras la desviación no es fiable
+const MAX_TICK_DELTA_MS       = 250;       // un salto mayor es una pausa del navegador, no tiempo medido
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let appState   = 'DISCONNECTED';
@@ -405,7 +415,9 @@ let calibrationData  = [];
 let baselinePromedio = 0;
 let baselineStdDev   = 0.0001;
 let calibrationProgress  = 0;
-let lastNCampsScores = [];
+let lastNCampsScores = [];   // {t, v}: se poda por tiempo, no por longitud
+let calibActiveMs    = 0;
+let lastTickAt       = null;
 let smoothedCalmScore = 0;
 let calmFinal = 0;
 let calibTriggerFired = false;
@@ -623,6 +635,8 @@ async function connectMuse() {
         calibrationData   = [];
         calibrationProgress  = 0;
         lastNCampsScores  = [];
+        calibActiveMs     = 0;
+        lastTickAt        = null;
         smoothedCalmScore = 0;
         calmFinal         = 0;
         calibTriggerFired = false;
@@ -646,7 +660,7 @@ async function connectMuse() {
                 if (intervalId) { clearInterval(intervalId); intervalId = null; }
                 setAppState('DISCONNECTED');
                 // Keep broadcasting so Unreal receives idx16=0, idx17=1 stably
-                intervalId = setInterval(() => broadcastFullTelemetry(0.0), 100);
+                intervalId = setInterval(() => broadcastFullTelemetry(0.0), TICK_MS);
             }
         });
 
@@ -659,7 +673,13 @@ async function connectMuse() {
         // Clear any prior keep-alive before starting session interval
         if (intervalId) { clearInterval(intervalId); intervalId = null; }
 
+        lastTickAt = null;
         intervalId = setInterval(() => {
+            // Tiempo REAL desde el tick anterior, recortado: un salto mayor
+            // significa que el navegador tuvo el bucle parado.
+            const now = Date.now();
+            const dt  = lastTickAt ? Math.min(now - lastTickAt, MAX_TICK_DELTA_MS) : 0;
+            lastTickAt = now;
             const currentRatio = rawAlpha / (rawBeta + 0.4 * rawGamma + 0.001);
 
             if (appState === 'WARMUP') {
@@ -681,13 +701,18 @@ async function connectMuse() {
                     return;
                 }
                 calibrationData.push(currentRatio);
-                calibrationProgress = Math.min(1, calibrationData.length / TARGET_CALIBRATION_SAMPLES);
+                calibActiveMs += dt;
+                // Las DOS condiciones: tiempo activo para que la persona se asiente,
+                // y muestras para que la desviación signifique algo.
+                calibrationProgress = Math.min(1,
+                    calibActiveMs / (CALIBRATION_SECONDS * 1000),
+                    calibrationData.length / MIN_CALIBRATION_SAMPLES);
 
                 const pct = Math.round(calibrationProgress * 100);
                 document.getElementById('calib-bar').style.width = pct + '%';
                 document.getElementById('calib-pct').textContent = pct + '%';
 
-                if (calibrationData.length >= TARGET_CALIBRATION_SAMPLES) {
+                if (calibrationProgress >= 1) {
                     baselinePromedio = calibrationData.reduce((a, b) => a + b, 0) / calibrationData.length;
                     const variance   = calibrationData.reduce((a, b) => a + Math.pow(b - baselinePromedio, 2), 0) / calibrationData.length;
                     baselineStdDev   = Math.max(Math.sqrt(variance), 0.0001);
@@ -708,9 +733,11 @@ async function connectMuse() {
                 calibrationProgress = calibProgressLocked ? 0.0 : 1.0;
                 let zScore = Math.min(Math.max((currentRatio - baselinePromedio) / baselineStdDev, -2.0), 2.0);
                 let normalizedScore = (zScore + 2.0) / 4.0;
-                lastNCampsScores.push(normalizedScore);
-                if (lastNCampsScores.length > MA_WINDOW) lastNCampsScores.shift();
-                smoothedCalmScore = lastNCampsScores.reduce((a, b) => a + b, 0) / lastNCampsScores.length;
+                // Ventana de TIEMPO, no de longitud. Nunca se vacía del todo.
+                lastNCampsScores.push({ t: now, v: normalizedScore });
+                const cutoff = now - SMOOTHING_SECONDS * 1000;
+                while (lastNCampsScores.length > 1 && lastNCampsScores[0].t < cutoff) lastNCampsScores.shift();
+                smoothedCalmScore = lastNCampsScores.reduce((a, s) => a + s.v, 0) / lastNCampsScores.length;
 
                 if (sensorActive === 1) {
                     calmFinal = smooth(calmFinal, smoothedCalmScore > 0.7 ? 1 : 0, 0.01);
@@ -719,7 +746,7 @@ async function connectMuse() {
                 updateVisuals(currentBpm, smoothedCalmScore);
                 broadcastFullTelemetry(smoothedCalmScore);
             }
-        }, 50);
+        }, TICK_MS);
 
         // EEG readings → raw band proxies
         museClient.eegReadings.subscribe(reading => {
@@ -781,7 +808,7 @@ function disconnectMuse() {
 
     devLog('Session ended — keep-alive started (idx16=0, idx17=1)');
     // Keep broadcasting disconnected state so Unreal receives stable BT=0 values
-    intervalId = setInterval(() => broadcastFullTelemetry(0.0), 100);
+    intervalId = setInterval(() => broadcastFullTelemetry(0.0), TICK_MS);
 }
 
 // ── Events ────────────────────────────────────────────────────────────────────

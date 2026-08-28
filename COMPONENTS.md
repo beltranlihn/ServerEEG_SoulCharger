@@ -27,8 +27,8 @@ Los números de línea orientan, no son exactos: verificar el símbolo por búsq
 | Calm Score | Ratio `alpha/(beta+0.4·gamma+0.001)`, z-score, media móvil | `soul-charger-admin.html` (~L1390) | ⚠️ contenido inválido | H1, R11 |
 | Ritmo cardíaco | `70 + (avgPower % 30)` — inventado, no PPG | `soul-charger-admin.html:1627` | ⚠️ **falso** | H2, R7 |
 | `sensorActive` | `avgPower >= 1.0`; no mide contacto con la piel | `soul-charger-admin.html:1621` | ⚠️ | H8, R8 |
-| Máquina de estados | `WARMUP → CALIBRATING → RUNNING`, loop 50 ms | `soul-charger-admin.html` | ✅ arquitectura correcta | — |
-| Calibración / baseline | 300 muestras (≈15 s), media y desviación por participante | `soul-charger-admin.html` (`TARGET_CALIBRATION_SAMPLES`) | ✅ se conserva | R11 |
+| Máquina de estados | `WARMUP → CALIBRATING → RUNNING`, loop 16,67 ms (60 Hz) | `soul-charger-admin.html` | ✅ arquitectura correcta | — |
+| Calibración / baseline | 15 s de tiempo activo **y** 200 muestras; media y desviación por participante | `soul-charger-admin.html` (`CALIBRATION_SECONDS`, `MIN_CALIBRATION_SAMPLES`) | ✅ se conserva | R11 |
 | Simulación | Señales sintéticas independientes (más realistas que el hardware) | `soul-charger-admin.html:1484-1512` | ✅ | H1, R3 |
 
 ### 3 · Transporte OSC (relay)
@@ -36,8 +36,8 @@ Los números de línea orientan, no son exactos: verificar el símbolo por búsq
 |---|---|---|---|---|
 | Relay WS→UDP | HTTP estático 5500 + WebSocket 3000 → OSC/UDP 8000 | `backend/server.js` (261 L) | ✅ | — |
 | `UDPPort` por cliente | Un socket UDP por WebSocket; estado colgado de `ws` | `backend/server.js:82-88` | ✅ base de multi-panel | D7 |
-| Empaquetado `/muse/data` | Arreglo de 18 floats (longitud congelada); idx 14 sigue `0.0` a propósito | `backend/server.js:229` · diccionario `:71` | ✅ | adr-0003 |
-| Direcciones dedicadas | `/muse/calm` (f), `/muse/heart_rate` (f), `/muse/sensor_active` (i) — el arreglo no se toca | `backend/server.js` (tras el send de `/muse/data`) | ✅ transporte (valor pulso = R7) | R4, adr-0004 |
+| ~~Empaquetado `/muse/data`~~ | Arreglo de 18 floats. **Retirado en R16**: Unreal ya no lo lee | `_backup/deprecated/20260828-arreglo-osc-18-floats.js` | 🗄️ archivado | adr-0005 |
+| Direcciones OSC | `/muse/calm` (f), `/muse/heart_rate` (f), `/muse/sensor_active` (i). Las **tres únicas** que se emiten | `backend/server.js:204-206` | ✅ transporte (valor pulso = R7, calma = R8) | R4/R16, adr-0004, adr-0005 |
 | Escudo de NaN | `safeFloat()` retiene el último valor sano por cliente | `backend/server.js:73-79` | ✅ **no romper** | — |
 | Canal de entrada | Escucha `/unreal/end_session` en `localPort: 0` (efímero) | `backend/server.js:89-95, 120-128` | ⚠️ inalcanzable | H9, R10 |
 | Guarda de ruta estática | Valida la ruta del servidor HTTP | `backend/server.js:28` | ✅ | — |
@@ -62,7 +62,7 @@ Los números de línea orientan, no son exactos: verificar el símbolo por búsq
 ### 5 · Integración Unreal / motor gráfico
 | Componente | Qué hace | Ubicación | Estado | Ticket |
 |---|---|---|---|---|
-| Blueprint receptor OSC | Lee los 18 floats por índice (`Get OSC Message Float At Index`) | **En el proyecto Unreal `VR_DigitalSanctuary`** (`BP_OSCReceiver`, `/Game/OSC/`) — no en este repo | ⚠️ sin inspeccionar | «Abierto» en NEXT, R4 |
+| Blueprint receptor OSC | Lee las tres direcciones por nombre (confirmado por el director en R16) | **En el proyecto Unreal `VR_DigitalSanctuary`** (`BP_OSCReceiver`, `/Game/OSC/`) — no en este repo | ⚠️ sin inspeccionar desde este repo | «Abierto» en NEXT |
 | Integración nativa C++ | `SoulChargerBLE`, `SoulChargerBrainFlow`: vía alternativa, no la usa la app web | `hardware/Source/` (requiere SDK) | ⚪ sin decidir | Abierto |
 
 ---

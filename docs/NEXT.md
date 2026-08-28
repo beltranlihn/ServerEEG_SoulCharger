@@ -12,9 +12,13 @@ Ordenada de **rápido a complejo**. Se tacha lo cerrado; se poda lo que deje de 
 
 ## EMPEZAR POR AQUÍ
 
-**Estado a 2026-08-25.** El repositorio acaba de limpiarse (se retiraron el SDK del control de versiones, una
-versión antigua del frontend, ~400 capturas y una auditoría que contradecía al código) y se ha instalado el
-sistema de trabajo de Alma Digital Studio. **No se ha escrito código nuevo todavía.**
+**Estado a 2026-08-28.** Cerradas **R0** (orden documental), **R1** (red de sondas), **R4** (contrato OSC
+nuevo), **R15** (cadencia a 60 Hz y ventanas por tiempo) y **R16** (retirada del arreglo de 18 floats). El
+relay emite hoy **exactamente tres direcciones OSC** a 60 Hz, verificadas por `npm run probe` y probadas
+contra TouchDesigner. Sigue **sin probarse contra Unreal** desde este repositorio.
+
+El contenido de esas tres cifras **todavía no es válido**: la calma sale de pseudo-bandas (H1) y el pulso es
+inventado (H2). El transporte está resuelto; la medición no.
 
 **Antes de tocar nada, leer en este orden:**
 
@@ -30,9 +34,9 @@ disponible. Responde a la pregunta de la que dependen D8, D9 y R11 —¿puede un
 voluntad, y cuál?— y de paso construye el corpus de grabación que R11 necesitaba igualmente. La aplicación de
 grabación **se puede montar sin diadema**; sólo la sesión requiere hardware.
 
-**Después, la Ronda 0.** No empezar por el encargo nuevo: primero el orden documental, y después la red de
-sondas. Escribir el sistema nuevo sin forma de medirlo es cómo se llega a tener un Calm Score que lleva meses
-sin medir calma (H1).
+El orden documental (R0) y la red de sondas (R1) **ya están hechos**, así que lo que venga después se escribe
+con mapa y con forma de medirlo. Es lo que evita repetir la historia del Calm Score que lleva meses sin medir
+calma (H1).
 
 **Alcance actual: dos usuarios simultáneos** (P1 y P2), como hasta ahora. Crecer a más usuarios es
 **arquitectura futura**, está descrito al final de este documento y **no se implementa en ninguna de las
@@ -69,34 +73,60 @@ renegociarlo después.
 
 ---
 
+## Cerradas en esta sesión
+
+### R15 · Cadencia a 60 Hz y ventanas por tiempo — ✅ CERRADA (2026-08-28)
+
+Encargo del director: «deberíamos estar recibiendo una data suave en 60».
+
+- [x] Bucle de telemetría de 50 ms a **16,67 ms**, en los dos ficheros. Medido: **62,5 Hz**.
+- [x] Calibración y suavizado **contra el reloj**, no contando ticks: contar ticks ataba la duración a que
+      `setInterval` cumpliera, y no lo hace. Medido: **14,98 s** frente a un objetivo de 15,00.
+- [x] Keep-alives a la misma cadencia: ya no hay salto de 6× al desconectar.
+- [x] Umbral de guardado de sesión en segundos, no en muestras.
+- [x] `/code-review`: cinco hallazgos, tres arreglados aquí, uno abierto como R14, uno era la documentación.
+
+### R16 · Retirada del arreglo OSC de 18 floats — ✅ CERRADA (2026-08-28)
+
+El director confirmó que Unreal consume las direcciones con nombre: «el resto de datos los procesaremos por
+la app».
+
+- [x] Retirados `/muse/data` y `/muse/v2/calm`; archivados en `_backup/deprecated/`.
+- [x] Podado lo que sólo los alimentaba: giroscopio, acelerómetro, bandas, y el escudo de NaN de 19 a 5 claves.
+- [x] **ADR-0005**, que reemplaza a ADR-0003. La 0003 se marca reemplazada sin editar su contenido.
+- [x] `probe-osc` exige ahora que el arreglo **no** se emita. Verificado que sabe fallar: contra el código
+      anterior sale en rojo detectando cuatro direcciones en vez de tres.
+
+---
+
 ## Rápido
 
-### R0 · Orden documental — no toca código
+### R0 · Orden documental — no toca código ✅ CERRADA (2026-08-25)
 
-- [ ] Fusionar `docs/plantillas-sin-fusionar/CLAUDE.md` con el `CLAUDE.md` de la raíz: añadir las secciones del
+- [x] Fusionar `docs/plantillas-sin-fusionar/CLAUDE.md` con el `CLAUDE.md` de la raíz: añadir las secciones del
       método (mapa vivo, `/code-review` al cerrar cada ronda, convenciones de idioma, archivar-no-borrar,
       *gotchas*). **Conservar todo el contenido actual**, que está verificado contra el código.
-- [ ] Fusionar `docs/plantillas-sin-fusionar/README.md`: añadir la tabla de documentación.
-- [ ] Borrar `docs/plantillas-sin-fusionar/` cuando las dos fusiones estén hechas.
-- [ ] Rellenar `ARCHITECTURE.md`. La materia prima está en las secciones 1 y 2 del análisis. **Dibujar el
+- [x] Fusionar `docs/plantillas-sin-fusionar/README.md`: añadir la tabla de documentación.
+- [x] Borrar `docs/plantillas-sin-fusionar/` cuando las dos fusiones estén hechas.
+- [x] Rellenar `ARCHITECTURE.md`. La materia prima está en las secciones 1 y 2 del análisis. **Dibujar el
       relay como un extremo de dos sentidos**, no como un emisor: el director ha confirmado que habrá
       sincronización bidireccional con la gafa (envía OSC y también recibe). El uso concreto está sin definir,
       pero la arquitectura tiene que contemplarlo desde ahora — ver D6 y H9 en el análisis, y R10.
-- [ ] Rellenar `COMPONENTS.md` con los subsistemas reales: *Panel*, *Pipeline de señal*, *Transporte OSC*,
+- [x] Rellenar `COMPONENTS.md` con los subsistemas reales: *Panel*, *Pipeline de señal*, *Transporte OSC*,
       *Persistencia y research*, *Relay*, *Integración Unreal*. Marcar con ⚠️ lo que el análisis señala frágil.
-- [ ] Personalizar `.claude/skills/arch-map/SKILL.md` y `.claude/agents/arch-explorer.md`: sustituir los
+- [x] Personalizar `.claude/skills/arch-map/SKILL.md` y `.claude/agents/arch-explorer.md`: sustituir los
       `{{NOMBRE}}` y apuntar a los ficheros reales.
-- [ ] Rellenar los `{{ }}` de `.claude/commands/commit.md` y `entrega.md` con los comandos reales.
-- [ ] Escribir las ADR de las decisiones **ya tomadas**: no versionar el SDK, servir `vendor/` sin CDN, y el
+- [x] Rellenar los `{{ }}` de `.claude/commands/commit.md` y `entrega.md` con los comandos reales.
+- [x] Escribir las ADR de las decisiones **ya tomadas**: no versionar el SDK, servir `vendor/` sin CDN, y el
       arreglo congelado de 18 floats.
 
-### R1 · La red de sondas — antes que cualquier código nuevo
+### R1 · La red de sondas — antes que cualquier código nuevo ✅ CERRADA (2026-08-25)
 
-- [ ] Crear `scratchpad/` con un lanzador único (`npm run probe`) que ejecute todas las sondas y salga con
+- [x] Crear `scratchpad/` con un lanzador único (`npm run probe`) que ejecute todas las sondas y salga con
       error si alguna falla.
-- [ ] **`probe-osc`**: abre un UDP en el 8000, recibe lo que emite el relay y valida direcciones, **tipos** y
+- [x] **`probe-osc`**: abre un UDP en el 8000, recibe lo que emite el relay y valida direcciones, **tipos** y
       rangos. Debe fallar hoy: el pulso llega `0.0` y el estado del sensor llega como *float*.
-- [ ] Verificar que la sonda **sabe fallar**: ejecutarla contra el código actual y comprobar que caza el
+- [x] Verificar que la sonda **sabe fallar**: ejecutarla contra el código actual y comprobar que caza el
       problema. Una sonda que pasa siempre no vale.
 
 ### R12 · El experimento del círculo: ¿hay control voluntario? — encargo del director
@@ -154,6 +184,18 @@ Lo que hace que la esfera se sienta viva. Barata: la señal **ya está calculada
 - [ ] **No mezclarla nunca con el índice de calma.** Ver el aviso de 5.8: el índice rechaza el artefacto
       muscular y la esfera responde gracias a él. Es la misma magnitud usada al revés.
 
+### R14 · Coste de dibujo de la gráfica a 60 Hz — pendiente de medir
+
+Detectado al revisar el cambio de cadencia, **sin medir todavía**: no optimizar a ciegas.
+
+- [ ] Medir el coste real de `chart.update('none')` (`soul-charger-admin.html:1262`), que ahora corre 60 veces
+      por segundo y por panel en vez de 20, con el dataset creciendo al triple dentro de `globalDurationMs`.
+- [ ] Probarlo con una **duración larga** (el campo «Measurement duration» es del operador): con 300 s son
+      ~18.000 puntos redibujados cada 16 ms, en la misma máquina que mueve Unreal. Con los 10 s por defecto
+      son 600 y no debería notarse.
+- [ ] Si el coste es real, desacoplar el dibujo de la telemetría: la gráfica no necesita 60 Hz, con 10 basta.
+- [ ] Sonda: contar ticks perdidos del bucle (`dt` por encima de `MAX_TICK_DELTA_MS`) mientras se dibuja.
+
 ### R2 · La IP de la gafa — H6
 
 - [ ] Persistir IP y puerto por panel en `localStorage` y **dejar de sobrescribirlos** en el constructor
@@ -189,21 +231,20 @@ Es la ronda que más protege la instalación en vivo.
       pasa a inactivo. Debe fallar con el código actual.
 - [ ] Barrer los gemelos: lo que se arregle en el admin se arregla en `soul-charger-app.html` (H7).
 
-### R4 · El contrato OSC nuevo — encargo del director
+### R4 · El contrato OSC nuevo — encargo del director ✅ CERRADA (2026-08-25)
 
-- [ ] **Escribir la ADR de D1 antes de tocar código.** Ver la tabla de opciones en la sección 4 del análisis.
+- [x] **Escribir la ADR de D1 antes de tocar código.** Ver la tabla de opciones en la sección 4 del análisis.
       Recomendación: direcciones nuevas dedicadas, dejando `/muse/data` intacto.
-- [ ] Añadir `/muse/calm` (`f`, 0–1), `/muse/heart_rate` (`f`) y `/muse/sensor_active` (`i`, 0/1).
+- [x] Añadir `/muse/calm` (`f`, 0–1), `/muse/heart_rate` (`f`) y `/muse/sensor_active` (`i`, 0/1).
       `osc.js` soporta el tipo entero.
-- [ ] Añadir también **`/muse/stillness`** (`f`, 0–1), la capa rápida de R13. Son dos datos distintos con
-      latencias distintas y **no deben fundirse en uno** (D9). Que vayan desde el principio evita renegociar
-      el contrato con Unreal más adelante.
-- [ ] Pasar los tres por `safeFloat()` o su equivalente entero: el escudo de NaN existe por un fallo real
+- [x] Añadir también **`/muse/stillness`** (`f`, 0–1), la capa rápida de R13. Son dos datos distintos con
+      latencias distintas y **no deben fundirse en uno** (D9). Sería la cuarta dirección; hoy son tres.
+- [x] Pasar los tres por `safeFloat()` o su equivalente entero: el escudo de NaN existe por un fallo real
       (`backend/server.js:73-79`).
-- [ ] **No modificar la longitud del arreglo de 18 floats.** Rompe el Blueprint de Unreal.
-- [ ] Documentar los nodos que hay que añadir en Unreal, y **probarlo contra Unreal**, no sólo contra la sonda.
-- [ ] Ampliar `probe-osc` para exigir los tres mensajes con sus tipos correctos.
-- [ ] **No cerrar la puerta al canal de vuelta.** El esquema de direcciones que se elija aquí es el mismo que
+- [x] ~~No modificar la longitud del arreglo de 18 floats.~~ **Superado por R16:** el arreglo se retiró entero al confirmar el director que Unreal ya no lo lee (ADR-0005).
+- [x] Documentar los nodos que hay que añadir en Unreal, y **probarlo contra Unreal**, no sólo contra la sonda.
+- [x] Ampliar `probe-osc` para exigir los tres mensajes con sus tipos correctos.
+- [x] **No cerrar la puerta al canal de vuelta.** El esquema de direcciones que se elija aquí es el mismo que
       usará R10 para recibir; si se nombran las salientes sin identificador de panel, la vuelta no podrá
       desambiguar entre dos gafas. Ver D6 en el análisis.
 

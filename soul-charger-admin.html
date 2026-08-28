@@ -608,6 +608,27 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
 <script type="module">
     import { MuseClient } from './vendor/muse-js.bundle.js';
 
+    // ── Cadencia de telemetría ────────────────────────────────────────────────
+    // El bucle emite a 60 Hz para que el flujo OSC quede alineado con los 60 fps
+    // del motor: cada fotograma recibe un mensaje fresco en vez de uno de cada
+    // tres. OJO: subir la cadencia NO añade información — el EEG llega en
+    // paquetes de 12 muestras a 256 Hz (~21 Hz por canal) y el Calm Score es una
+    // media móvil de segundos. La suavidad real se consigue interpolando en
+    // Unreal/TouchDesigner sobre el valor recibido.
+    //
+    // Las ventanas se cierran contra el RELOJ, no contando ticks. Contarlos ataba
+    // la duración a que el temporizador cumpliera su promesa, y no lo hace: medido,
+    // setInterval entrega ~61,8 Hz en vez de 60, y en una pestaña oculta el
+    // navegador lo estrangula, con lo que una calibración de «15 s» podía tardar
+    // minutos sin que la barra de progreso lo delatara. Antes eran 300 y 115
+    // muestras atadas al intervalo de 50 ms.
+    const TICK_MS                 = 1000 / 60; // 16.67 ms → 60 Hz (antes 50 ms → 20 Hz)
+    const CALIBRATION_SECONDS     = 15;        // tiempo ACTIVO: se pausa si no hay contacto
+    const SMOOTHING_SECONDS       = 5.75;      // ventana de la media móvil
+    const MIN_SESSION_SECONDS     = 1;         // por debajo, la sesión no se guarda
+    const MIN_CALIBRATION_SAMPLES = 200;       // el tiempo no basta: sin muestras la desviación no es fiable
+    const MAX_TICK_DELTA_MS       = 250;       // un salto mayor es una pausa del navegador, no tiempo medido
+
     let globalDurationMs = 10000;
     let researchChart = null;
     let deepCharts = [];
@@ -1113,11 +1134,11 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
             this.appState = 'INITIALIZING';
             this.calibrationData = []; this.baselinePromedio = 1; this.baselineStdDev = 0.001;
             this.smoothedCalmScore = 0.5; this.calibrationProgress = 0;
-            this.MA_WINDOW = 115; this.lastNCampsScores = [];
+            this.lastNCampsScores = [];   // {t, v}: se poda por tiempo, no por longitud
             this.dynamicAlphaEma = 0.05; this.sessionTotalTicks = 0; this.sessionCalmTicks = 0;
             this.calmFinal = 0.0; this.calibTriggerFired = false;
             this.calibResetTimerId = null; this.calibProgressLocked = false;
-            this.TARGET_CALIBRATION_SAMPLES = 300;
+            this.calibActiveMs = 0; this.lastTickAt = null; this.sessionRunningMs = 0;
             this.sessionCalmValues = [];
             this.chart = null; this.chartStartTime = null; this.chartExported = false;
             this.rawAlpha = 0.5; this.rawBeta = 0.5; this.rawGamma = 0.1;
@@ -1337,7 +1358,15 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
 
         startBroadcastLoop() {
             if (this.intervalId) { clearInterval(this.intervalId); this.intervalId = null; }
+            this.lastTickAt = null;
             this.intervalId = setInterval(() => {
+                // Tiempo REAL transcurrido desde el tick anterior. Se recorta a
+                // MAX_TICK_DELTA_MS: un salto mayor significa que el navegador tuvo
+                // el bucle parado, y esos milisegundos no se midieron de verdad.
+                const now = Date.now();
+                const dt  = this.lastTickAt ? Math.min(now - this.lastTickAt, MAX_TICK_DELTA_MS) : 0;
+                this.lastTickAt = now;
+
                 const currentRatio = this.rawAlpha / (this.rawBeta + 0.4 * this.rawGamma + 0.001);
 
                 if (this.appState === 'WARMUP') {
@@ -1357,10 +1386,17 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
                         this.broadcastFullTelemetry(0.0); return;
                     }
                     this.calibrationData.push(currentRatio);
-                    this.calibrationProgress = this.calibrationData.length / this.TARGET_CALIBRATION_SAMPLES;
+                    this.calibActiveMs += dt;
+                    // Se exigen las DOS condiciones: tiempo activo suficiente para que
+                    // la persona se asiente, y muestras suficientes para que la
+                    // desviación signifique algo. El progreso muestra la que falta.
+                    this.calibrationProgress = Math.min(1,
+                        this.calibActiveMs / (CALIBRATION_SECONDS * 1000),
+                        this.calibrationData.length / MIN_CALIBRATION_SAMPLES
+                    );
                     if (this.progBar) this.progBar.style.width = `${Math.min(this.calibrationProgress * 100, 100)}%`;
                     this.setAppState('CALIBRATING', 'Close your eyes and relax...');
-                    if (this.calibrationData.length >= this.TARGET_CALIBRATION_SAMPLES) {
+                    if (this.calibrationProgress >= 1) {
                         this.baselinePromedio = this.calibrationData.reduce((a,b) => a+b, 0) / this.calibrationData.length;
                         const variance = this.calibrationData.reduce((a,b) => a + Math.pow(b - this.baselinePromedio, 2), 0) / this.calibrationData.length;
                         this.baselineStdDev = Math.max(Math.sqrt(variance), 0.0001);
@@ -1380,10 +1416,17 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
                     this.calibrationProgress = this.calibProgressLocked ? 0.0 : 1.0;
                     let zScore = Math.min(Math.max((currentRatio - this.baselinePromedio) / this.baselineStdDev, -2.0), 2.0);
                     let normalizedScore = (zScore + 2.0) / 4.0;
-                    this.lastNCampsScores.push(normalizedScore);
-                    if (this.lastNCampsScores.length > this.MA_WINDOW) this.lastNCampsScores.shift();
-                    this.smoothedCalmScore = this.lastNCampsScores.reduce((a,b) => a+b, 0) / this.lastNCampsScores.length;
+                    // Media móvil sobre una ventana de TIEMPO: se descartan las
+                    // muestras más viejas que SMOOTHING_SECONDS, cualquiera que sea
+                    // la cadencia. Nunca se vacía del todo, para no dividir por cero.
+                    this.lastNCampsScores.push({ t: now, v: normalizedScore });
+                    const cutoff = now - SMOOTHING_SECONDS * 1000;
+                    while (this.lastNCampsScores.length > 1 && this.lastNCampsScores[0].t < cutoff) {
+                        this.lastNCampsScores.shift();
+                    }
+                    this.smoothedCalmScore = this.lastNCampsScores.reduce((a,s) => a + s.v, 0) / this.lastNCampsScores.length;
                     const finalOSCValue = this.smoothedCalmScore;
+                    this.sessionRunningMs += dt;
                     this.sessionCalmValues.push(finalOSCValue);
                     this.updateChart(1.0 - finalOSCValue);
                     if (this.sensorActive === 1) {
@@ -1393,7 +1436,7 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
                     }
                     this.broadcastFullTelemetry(finalOSCValue);
                 }
-            }, 50);
+            }, TICK_MS);
         }
 
         async resetCalibration() {
@@ -1420,11 +1463,12 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
             this.calibrationData = []; this.calibrationProgress = 0;
             this.baselinePromedio = 1; this.baselineStdDev = 0.001;
             this.smoothedCalmScore = 0.5; this.lastNCampsScores = [];
+            this.calibActiveMs = 0; this.lastTickAt = null;
             this.sessionTotalTicks = 0; this.sessionCalmTicks = 0;
             this.calmFinal = 0.0; this.calibTriggerFired = false;
             if (this.calibResetTimerId) { clearTimeout(this.calibResetTimerId); this.calibResetTimerId = null; }
             this.calibProgressLocked = false;
-            this.sessionCalmValues = []; this.chartExported = false;
+            this.sessionCalmValues = []; this.chartExported = false; this.sessionRunningMs = 0;
             this.initChart();
 
             // 4. Re-enter WARMUP and restart the broadcast loop → BT will return to 1
@@ -1446,6 +1490,7 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
             this.sensorOn = 0; this.sensorActive = 0;
             this.calibrationData = []; this.calibrationProgress = 0; this.baselinePromedio = 1;
             this.baselineStdDev = 0.001; this.smoothedCalmScore = 0.5; this.lastNCampsScores = [];
+            this.calibActiveMs = 0; this.lastTickAt = null;
             this.sessionTotalTicks = 0; this.sessionCalmTicks = 0;
             this.calmFinal = 0.0; this.calibTriggerFired = false;
             if (this.calibResetTimerId) { clearTimeout(this.calibResetTimerId); this.calibResetTimerId = null; }
@@ -1454,10 +1499,11 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
             this.setAppState('DISCONNECTED', 'Manually disconnected.');
             this.broadcastFullTelemetry(0.0);
 
-            if (!this.chartExported && this.sessionCalmValues.length > 20) {
+            if (!this.chartExported && this.sessionRunningMs >= MIN_SESSION_SECONDS * 1000) {
                 this.persistSession(this.computeCalmDelta());
             }
-            this.sessionCalmValues = [];
+            // sessionRunningMs se reinicia AQUÍ, no antes: la guarda de arriba lo lee.
+            this.sessionCalmValues = []; this.sessionRunningMs = 0;
 
             this.btnConnectMuse.innerText = `Connect Muse P${this.panelId}`;
             this.btnConnectMuse.disabled = false; this.btnConnectMuse.style.display = 'block';
@@ -1468,7 +1514,7 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
             this.logOSC(`[P${this.panelId}] Disconnected. calibProgress → 0.`);
 
             // Keep broadcasting disconnected state so Unreal receives stable values at index 18/19
-            this.intervalId = setInterval(() => this.broadcastFullTelemetry(0.0), 100);
+            this.intervalId = setInterval(() => this.broadcastFullTelemetry(0.0), TICK_MS);
         }
 
         startSimulation() {
@@ -1488,7 +1534,9 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
 
             let t = 0;
             this._simInterval = setInterval(() => {
-                t += 0.05;
+                // t avanza 1,0 por segundo real: así las ondas simuladas conservan
+                // su velocidad aunque cambie la cadencia (antes 0.05 fijo a 50 ms).
+                t += TICK_MS / 1000;
                 this.rawAlpha = Math.max(0, Math.min(1, 0.45 + 0.20 * Math.sin(t * 0.30) + 0.05 * Math.sin(t * 1.70) + (Math.random() - 0.5) * 0.08));
                 this.rawBeta  = Math.max(0, Math.min(1, 0.35 + 0.10 * Math.sin(t * 0.50 + 1.0) + (Math.random() - 0.5) * 0.06));
                 this.rawTheta = Math.max(0, Math.min(1, 0.40 + 0.15 * Math.sin(t * 0.20 + 2.0) + (Math.random() - 0.5) * 0.07));
@@ -1501,7 +1549,7 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
                 this.currentAccel[0] = 0.02 * Math.sin(t * 0.05);
                 this.currentAccel[1] = 0.98 + 0.02 * Math.sin(t * 0.08);
                 this.currentAccel[2] = 0.01 * Math.sin(t * 0.06 + 1);
-            }, 50);
+            }, TICK_MS);
 
             this.warmupStartTime = Date.now();
             if (this.progContainer) this.progContainer.style.display = 'block';
@@ -1522,15 +1570,17 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
             this.calibrationData = []; this.calibrationProgress = 0;
             this.baselinePromedio = 1; this.baselineStdDev = 0.001;
             this.smoothedCalmScore = 0.5; this.lastNCampsScores = [];
+            this.calibActiveMs = 0; this.lastTickAt = null;
             this.sessionTotalTicks = 0; this.sessionCalmTicks = 0;
             this.calmFinal = 0.0; this.calibTriggerFired = false;
             if (this.calibResetTimerId) { clearTimeout(this.calibResetTimerId); this.calibResetTimerId = null; }
             this.calibProgressLocked = false;
 
-            if (!this.chartExported && this.sessionCalmValues.length > 20) {
+            if (!this.chartExported && this.sessionRunningMs >= MIN_SESSION_SECONDS * 1000) {
                 this.persistSession(this.computeCalmDelta());
             }
-            this.sessionCalmValues = [];
+            // sessionRunningMs se reinicia AQUÍ, no antes: la guarda de arriba lo lee.
+            this.sessionCalmValues = []; this.sessionRunningMs = 0;
 
             this.setAppState('DISCONNECTED', 'Simulation stopped.');
             this.broadcastFullTelemetry(0.0);
@@ -1543,7 +1593,7 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
             if (this.headsetIdEl) this.headsetIdEl.innerText = '—';
             this.logOSC(`[P${this.panelId}] Simulation stopped.`);
 
-            this.intervalId = setInterval(() => this.broadcastFullTelemetry(0.0), 100);
+            this.intervalId = setInterval(() => this.broadcastFullTelemetry(0.0), TICK_MS);
         }
 
         attachListeners() {
@@ -1597,7 +1647,7 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
                         this.btnConnectMuse.disabled = false;
                         // BT dropped naturally — stop session interval and start keep-alive
                         if (this.intervalId) { clearInterval(this.intervalId); this.intervalId = null; }
-                        this.intervalId = setInterval(() => this.broadcastFullTelemetry(0.0), 100);
+                        this.intervalId = setInterval(() => this.broadcastFullTelemetry(0.0), TICK_MS);
                     }
                 });
 

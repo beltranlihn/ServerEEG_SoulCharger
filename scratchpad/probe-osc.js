@@ -4,10 +4,10 @@
 // trama), mide la conclusion (que el mensaje OSC entregado sea el correcto).
 //
 // SABE FALLAR contra el codigo actual:
-//   - el pulso no viaja: el arreglo /muse/data pone idx 14 en 0.0 (H2)
-//   - no existen las direcciones dedicadas /muse/heart_rate (f) ni
-//     /muse/sensor_active (i) que definira R4.
-// Cuando R4 este hecho, esas comprobaciones pasan a verde.
+//   - R4: no existian las direcciones dedicadas /muse/heart_rate (f) ni
+//     /muse/sensor_active (i).
+//   - R16: el arreglo /muse/data seguia emitiendose aunque Unreal ya no lo lee.
+// Cada ronda pasa a verde su parte, y la sonda sigue exigiendo la anterior.
 const path = require('path');
 const NM = path.join(__dirname, '..', 'backend', 'node_modules');
 const osc = require(path.join(NM, 'osc'));
@@ -66,22 +66,26 @@ function run() {
     const last = (arr) => arr[arr.length - 1];
 
     function evaluate() {
-      // ── Contrato ACTUAL (debe estar en verde) ──────────────────────────
-      const data = byAddr('/muse/data');
-      add(data.length > 0, `se recibe /muse/data (mensajes: ${data.length})`);
-      if (data.length) {
-        const m = last(data);
-        add(m.args.length === 18, `/muse/data lleva 18 args (lleva ${m.args.length})`);
-        add(m.args.every((a) => a.type === 'f'), 'todos los args de /muse/data son float (f)');
-        const calm = m.args[13] && m.args[13].value;
-        add(Math.abs(calm - SENT.calm) < 1e-3, `idx13 calm = ${calm} ≈ ${SENT.calm}`);
-        add(calm >= 0 && calm <= 1, 'idx13 calm en rango 0–1');
-        const on = m.args[16] && m.args[16].value;
-        const off = m.args[17] && m.args[17].value;
-        add(Math.abs((on + off) - 1) < 1e-6, `idx16/17 BT complementarios (${on} / ${off})`);
+      // ── Se emiten EXACTAMENTE tres direcciones, ni una más ─────────────
+      const dirs = [...new Set(messages.map((m) => m.address))].sort();
+      add(dirs.length === 3, `se emiten 3 direcciones (se emiten ${dirs.length}: ${dirs.join(' ') || 'ninguna'})`);
+
+      // ── [R16] El arreglo y el float legado ya NO deben emitirse ─────────
+      // El director confirmó que Unreal consume las direcciones dedicadas y nada
+      // más. Emitir el arreglo era ancho de banda y confusión (ADR-0005).
+      add(byAddr('/muse/data').length === 0, '[R16] /muse/data ya NO se emite');
+      add(byAddr('/muse/v2/calm').length === 0, '[R16] /muse/v2/calm ya NO se emite');
+
+      // ── Calma, con su valor y su rango ─────────────────────────────────
+      const cm = byAddr('/muse/calm');
+      add(cm.length > 0, `se recibe /muse/calm (mensajes: ${cm.length})`);
+      if (cm.length) {
+        const c = last(cm).args[0];
+        add(c.type === 'f', `/muse/calm es float (es ${c.type})`);
+        add(Math.abs(c.value - SENT.calm) < 1e-3, `/muse/calm = ${c.value} ≈ ${SENT.calm}`);
+        add(c.value >= 0 && c.value <= 1, '/muse/calm en rango 0–1');
       }
 
-      // ── Contrato NUEVO de R4 (HOY EN ROJO: la sonda sabe fallar) ────────
       // Nota: R4 sólo verifica el TRANSPORTE del pulso; su VALOR sigue siendo el
       // inventado (H2) hasta R7 (PPG real).
       const hr = byAddr('/muse/heart_rate');
@@ -90,12 +94,7 @@ function run() {
       const sa = byAddr('/muse/sensor_active');
       add(sa.length > 0 && sa[0].args[0] && sa[0].args[0].type === 'i',
         '[R4] /muse/sensor_active de tipo entero (i)');
-      // El pulso viaja por su direccion dedicada, NO en el arreglo congelado:
-      // idx14 se queda en 0.0 a proposito (ADR-0003 / ADR-0004).
-      if (data.length) {
-        const idx14 = last(data).args[14] && last(data).args[14].value;
-        add(idx14 === 0, `[R4] idx14 del arreglo sigue en 0.0 (el pulso va por /muse/heart_rate, no aqui)`);
-      }
+
     }
   });
 }

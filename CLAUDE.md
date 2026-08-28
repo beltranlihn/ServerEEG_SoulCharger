@@ -30,7 +30,7 @@ El método completo, con el motivo de cada regla, está en `METODO.md`.
 - **Ejecutar:** `cd backend && npm install && npm start` — o `Iniciar Soul Charger.bat` (libera puertos y abre Chrome/Edge).
 - **Compilar / empaquetar:** *no hay build.* Los HTML son autocontenidos; se edita y se recarga el navegador.
 - **Comprobación rápida de sintaxis:** `node --check backend/server.js` (el relay). Los HTML no tienen paso de compilación.
-- **Pruebas y sondas:** `npm run probe` — *pendiente: las sondas se crean en R1 (`docs/NEXT.md`).* Hasta entonces no existe.
+- **Pruebas y sondas:** `npm run probe` — arranca un relay aislado (WS 3999 / HTTP 5599), corre las sondas y sale con error si alguna falla. Hoy sólo `probe-osc`; las demás se crean en sus rondas.
 
 ## Entrega
 > **Un despliegue sin comprobar no está hecho: está supuesto.** El guion de entrega tiene que **verificar el resultado** (hash, relectura, recuento) y salir con error si no cuadra.
@@ -47,31 +47,39 @@ Instalación **local**, no hay despliegue remoto: la «entrega» es arrancar el 
 
 El servidor abre un socket UDP **por cada cliente WebSocket**, así que dos paneles pueden apuntar a IPs distintas simultáneamente (`backend/server.js:82-88`). Web Bluetooth **no** funciona en Firefox ni Safari.
 
-## ⚠️ Contrato OSC — no romper
+## ⚠️ Contrato OSC — sólo tres direcciones
 
-El mensaje `/muse/data` es un arreglo de **exactamente 18 floats**. Unreal lo lee con `Get OSC Message Float At Index`; cambiar la longitud provoca fallos *out-of-bounds* en el Blueprint. **Decisión registrada en `docs/adr/adr-0003-arreglo-osc-congelado.md`.**
+El relay emite **exactamente tres mensajes** por tick, a 60 Hz. No hay ningún otro. Registrado en
+`docs/adr/adr-0005-retirada-del-arreglo-osc.md`.
 
-| Índice (0-based) | Unreal | Valor |
-|---|---|---|
-| 13 | `muse/data14` | Calm Score (`0.0`–`1.0`) |
-| 15 | `muse/data16` | Progreso de calibración (`0.0`–`1.0`) |
-| 16 | `muse/data17` | BT conectado (`1.0` / `0.0`) |
-| 17 | `muse/data18` | BT desconectado — siempre complementario al 16 |
-
-Los otros 14 índices se envían como `0.0` a propósito (giroscopio, acelerómetro y bandas puras silenciados). **Se envían igual** para preservar la longitud. ⚠️ El índice 14 (`heart_rate` en el diccionario interno, `server.js:71`) sale hoy como `0.0`: el pulso no llega a Unreal (H2).
-
-**Direcciones dedicadas (R4, ADR-0004) — el arreglo NO se toca:**
-| Dirección | Tipo | Valor | Nota |
+| Dirección | Tipo | Valor | Estado del contenido |
 |---|---|---|---|
-| `/muse/calm` | `f` | 0–1 | Duplica el idx 13 con nombre legible |
-| `/muse/heart_rate` | `f` | bpm | **Transporte** listo; el valor es aún el inventado hasta R7 (H2) |
-| `/muse/sensor_active` | `i` | 0/1 | Entero; su veracidad la arreglan R3/R8 (H4/H8) |
+| `/muse/calm` | `f` | Índice de calma, `0.0`–`1.0` | ⚠️ transporte correcto, **contenido no válido** (H1) hasta R8 |
+| `/muse/heart_rate` | `f` | Ritmo cardíaco en bpm | ⚠️ transporte correcto, **valor inventado** (H2) hasta R7 |
+| `/muse/sensor_active` | `i` | Sensor activo, `0` / `1` | ⚠️ entero correcto, **su veracidad** la arreglan R3/R8 (H4/H8) |
 
-> **Nodos a añadir en Unreal / TouchDesigner (probar contra el motor, no sólo contra la sonda):** un `OSC Message` por dirección → `Get OSC Message Float At Index 0` para `/muse/calm` y `/muse/heart_rate`; `Get OSC Message Int At Index 0` para `/muse/sensor_active`. El arreglo `/muse/data` sigue igual: los nodos existentes no se tocan. Verificado end-to-end por `probe-osc` (`npm run probe` en verde); el test contra Unreal/TouchDesigner queda por hacer.
+> **Nodos en Unreal / TouchDesigner:** un `OSC Message` por dirección →
+> `Get OSC Message Float At Index 0` para `/muse/calm` y `/muse/heart_rate`;
+> `Get OSC Message Int At Index 0` para `/muse/sensor_active`.
 
-Otras direcciones:
-- `/muse/v2/calm` — float suelto, en mensajes de tipo `calm_update`.
-- `/unreal/end_session` — **entrante**, desde Unreal. El relay tiene código para reenviarlo al navegador como `unreal_command`, pero **no está comprobado que llegue nunca**: el socket escucha en un puerto efímero (`localPort: 0`, `backend/server.js:91`) que cambia en cada reconexión, así que Unreal no puede saber a dónde enviar (H9). Es lo primero que bloquea la sincronización bidireccional planificada (R10).
+**Retirado en R16 — no volver a añadirlo sin leer la ADR-0005:**
+`/muse/data` (el arreglo de 18 floats) y `/muse/v2/calm`. El director confirmó que Unreal ya consume las
+direcciones con nombre y no necesita nada más. El código está archivado en
+`_backup/deprecated/20260828-arreglo-osc-18-floats.js` con instrucciones de restauración.
+
+Consecuencia que conviene tener presente: **el progreso de calibración y el estado del Bluetooth ya no salen
+por OSC**. Iban en los índices 15 y 16 del arreglo y no tienen dirección propia. Si algún día hacen falta en el
+motor, hay que añadirlas explícitamente.
+
+Verificado por `probe-osc` (`npm run probe`), que exige las tres direcciones con su tipo **y que el arreglo NO
+se emita**. Comprobado que sabe fallar: contra el código anterior sale en rojo detectando cuatro direcciones.
+Probado contra TouchDesigner; **contra Unreal sigue sin probarse desde este repositorio**.
+
+Dirección **entrante**:
+- `/unreal/end_session` — desde Unreal. El relay tiene código para reenviarlo al navegador como
+  `unreal_command`, pero **no está comprobado que llegue nunca**: el socket escucha en un puerto efímero
+  (`localPort: 0`, `backend/server.js`) que cambia en cada reconexión, así que Unreal no puede saber a dónde
+  enviar (H9). Es lo primero que bloquea la sincronización bidireccional planificada (R10).
 
 ## Algoritmo de Calm Score
 
@@ -79,19 +87,31 @@ Definido en `soul-charger-admin.html` (y **duplicado** en `soul-charger-app.html
 
 Ratio base: `alpha / (beta + 0.4 * gamma + 0.001)`. Gamma actúa como proxy de ruido EMG (mandíbula).
 
-Máquina de estados, en un loop de **50 ms (20 Hz)**:
+Máquina de estados, en un loop de **16,67 ms (60 Hz)**, alineado con los 60 fps del motor. Subir la cadencia **no añade información** —el EEG llega a ~21 Hz por canal—: sirve para que cada fotograma tenga un mensaje fresco. La suavidad se interpola en Unreal.
 1. `WARMUP` — 2 s estabilizando señal.
-2. `CALIBRATING` — acumula `TARGET_CALIBRATION_SAMPLES = 300` muestras (≈15 s), media y desviación del baseline. Se pausa si `sensorActive === 0`.
-3. `RUNNING` — z-score contra el baseline, recortado a ±2.0, normalizado a `0.0`–`1.0`, suavizado con media móvil de `MA_WINDOW = 115` muestras (≈5.75 s).
+2. `CALIBRATING` — exige **`CALIBRATION_SECONDS = 15` s de tiempo activo Y `MIN_CALIBRATION_SAMPLES = 200` muestras**; con las dos calcula media y desviación del baseline. Se pausa si `sensorActive === 0`.
+3. `RUNNING` — z-score contra el baseline, recortado a ±2.0, normalizado a `0.0`–`1.0`, suavizado con media móvil sobre una **ventana de `SMOOTHING_SECONDS = 5,75` s**.
 
-Tras la calibración, el índice 15 se mantiene en `1.0` durante 5 s y luego cae a `0.0` (`calibProgressLocked`).
+Tras la calibración, el progreso se mantiene en `1.0` durante 5 s y luego cae a `0.0` (`calibProgressLocked`). Desde R16 **este valor ya no sale por OSC**: sólo alimenta la interfaz y el espejo hacia el navegador.
 
 > 🔴 **El contenido no es válido, aunque el transporte funcione:** las bandas son pseudo-bandas `(avgPower·k) % 1.0`, no un FFT (H1). La definición de un índice de calma defendible es la sección 5 del análisis y la ronda R11. Cuando se implemente, esta sección se sustituye por la definición vigente.
 
 ## Gotchas (no repetir errores)
 *Esta sección empieza vacía y crece. Cada entrada sale de un fallo real: qué parecía, qué era, cómo se detecta.*
 
-- *(aún sin entradas de código nuevo — los fallos conocidos del código actual están catalogados como H1…H9 en `docs/historial/2026-08-25-analisis-para-traspaso.md`.)*
+- **Una ventana en segundo plano estrangula el flujo OSC a ~1 Hz.** *Qué parece:* la diadema falla o el relay
+  se cuelga — el motor recibe valores congelados y la calibración no avanza. *Qué es:* Chrome estrangula los
+  temporizadores de las pestañas ocultas. Reproducido el 2026-08-28: **62,5 Hz con la ventana visible, 1,5 Hz
+  al ocultarla**, con huecos de 1000 ms exactos. *Cómo se detecta:* si los huecos entre mensajes son múltiplos
+  de un segundo, es esto. *Qué hacer:* mantener la ventana del panel visible durante toda la sesión. Desde
+  R15 el sistema degrada con honestidad —la calibración no se completa con datos basura— pero **sigue sin
+  avisar**; darle aviso es parte de R3.
+- **Contar ticks no es medir tiempo.** *Qué parece:* una ventana «de 15 s» definida como 300 muestras.
+  *Qué es:* `setInterval` no cumple su promesa —medido, entrega 61,8 Hz cuando se le piden 60— y bajo
+  estrangulamiento la misma cuenta puede tardar minutos. *Qué hacer:* las ventanas se cierran contra el reloj,
+  con los milisegundos por tick acotados (`MAX_TICK_DELTA_MS`) para que una pausa del navegador no cuente
+  como tiempo medido.
+- *(los fallos conocidos del código heredado están catalogados como H1…H9 en `docs/historial/2026-08-25-analisis-para-traspaso.md`.)*
 
 ## Convenciones y trampas conocidas del código actual
 - **Sin build.** Se edita el HTML y se recarga. No agregar un bundler sin pedirlo.

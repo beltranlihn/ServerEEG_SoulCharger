@@ -7,6 +7,75 @@ hizo.
 
 ---
 
+## R16 · Retirada del arreglo OSC — 2026-08-28 — El relay emite sólo tres direcciones
+
+Probando en TouchDesigner, el director preguntó qué eran `data14` y `data17`. Al explicárselo —el Calm Score
+duplicado y el estado del Bluetooth— respondió: *«Solo necesitamos sensor active, heart rate y calm, porque
+eso es lo que utilizo en Unreal. El resto de datos los procesaremos por la app.»* Confirmó además que el
+Blueprint ya consume las direcciones con nombre.
+
+**Qué se hizo.** Se retiran `/muse/data` (18 floats) y `/muse/v2/calm`, archivados en
+`_backup/deprecated/20260828-arreglo-osc-18-floats.js` con instrucciones de restauración. Se poda lo que sólo
+los alimentaba: giroscopio, acelerómetro, las cinco pseudo-bandas, `calm_final` y `calib_completed`, en el
+objeto `v`, en el destructuring y en el escudo de NaN. **ADR-0005** reemplaza a **ADR-0003**, que se marca
+como reemplazada sin editar su contenido, como manda el método.
+
+**Medido.**
+
+- Direcciones emitidas: **de 4 a 3**. Confirmado por la sonda con el sistema en marcha.
+- Claves del escudo de NaN: **de 19 a 5**, exactamente las cinco que `safeFloat()` usa de verdad. Comprobado
+  cruzando las llamadas contra el diccionario.
+- **La sonda sabe fallar:** ejecutada contra el código anterior sale en **rojo (exit 1)** detectando cuatro
+  direcciones y que `/muse/data` seguía emitiéndose; contra el nuevo, **verde (exit 0)** con las nueve
+  comprobaciones. Antes de esa prueba hubo un falso negativo —el puerto 8100 estaba ocupado por un monitor
+  viejo y la sonda no recibía nada— que se detectó y se repitió con el puerto libre.
+- Antes de retirarlo se volcaron los valores en vivo: de los 18 floats sólo dos eran distintos de cero, el
+  índice 13 (`0.375`, idéntico a `/muse/calm`) y el 16 (BT conectado). Los otros dieciséis viajaban a `0.0`.
+
+**Trampas encontradas.** El arreglo llevaba meses transportando **un solo dato útil duplicado** y quince ceros.
+La documentación lo describía como crítico e intocable, y lo era mientras Unreal lo leyera; nadie había vuelto
+a preguntar si seguía siendo cierto. Una restricción heredada se vuelve dogma si no se revisa su premisa.
+
+**Sin verificar.** No se ha inspeccionado el Blueprint de Unreal desde este repositorio; la migración la
+afirma el director. Si alguna instalación aún leyera `/muse/data`, dejaría de recibir datos sin previo aviso.
+
+**Consecuencia a tener presente.** El progreso de calibración y el estado del Bluetooth **ya no salen por
+OSC**: iban en los índices 15 y 16 y no tienen dirección propia.
+
+---
+
+## R15 · Cadencia a 60 Hz — 2026-08-28 — Ventanas contra el reloj, no contando ticks
+
+Encargo del director: *«llega, pero como a 20 Hz; deberíamos estar recibiendo una data suave en 60»*.
+
+**Qué se hizo.** El bucle de telemetría pasa de 50 ms a 16,67 ms en los dos ficheros. Lo importante no es el
+número: las ventanas de calibración y suavizado estaban expresadas **en muestras** (300 y 115) atadas al
+intervalo, así que cambiarlo las habría acortado a 5 s y 1,9 s sin que nada avisara. Se rescriben contra el
+reloj —15 s de tiempo activo **y** 200 muestras para calibrar, ventana de 5,75 s para suavizar— con los
+milisegundos por tick acotados a 250, para que una pausa del navegador no cuente como tiempo medido. También
+se igualan los cinco keep-alive a la cadencia del bucle y se expresa en segundos el umbral de guardado.
+
+**Medido.**
+
+- Cadencia real recibida por UDP: **20 Hz → 62,5 Hz**, con huecos máximos de 17–18 ms.
+- Duración de la calibración, de reloj: **14,98 s** frente a un objetivo de 15,00.
+- El mismo código con la ventana oculta: **1,5 Hz** y la calibración sin completarse. Antes habría terminado
+  igual contando ticks, produciendo un baseline sin sentido.
+
+**Trampas encontradas.** Dos regresiones propias, encontradas releyendo el parche antes de subirlo: se
+reiniciaba `sessionRunningMs` **antes** de la guarda que lo lee, con lo que ninguna sesión se habría guardado
+nunca; y al corregirlo, el reemplazo se comió la inicialización del constructor, dejando `undefined + dt =
+NaN` — el mismo fallo por otra puerta. Ambas arregladas y el ciclo de vida verificado.
+
+Y una trampa de herramienta que costó tiempo: los clics sintéticos del navegador automatizado no llegaban al
+manejador del botón; `element.click()` sí. No era un fallo de la aplicación, pero durante un rato lo pareció.
+
+**Sin verificar.** El coste de dibujo de Chart.js a 60 Hz: la gráfica se redibuja el triple de veces y el
+dataset crece igual. Con la duración por defecto (10 s) no debería notarse; con duraciones largas puede
+saturar el hilo. Queda abierto como **R14**, para medirlo antes de optimizar a ciegas.
+
+---
+
 ## R4 · Contrato OSC nuevo — 2026-08-30 — Direcciones dedicadas para calma, pulso y sensor
 
 Encargo del director: enviar índice de calma, ritmo cardíaco y estado del sensor. Se hace **fuera del orden del camino A** (iría tras R2/R3) porque es independiente de ellas y es lo primero que el director puede **testear con TouchDesigner**; la sonda de R1 ya lo cubría.

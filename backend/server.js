@@ -68,13 +68,10 @@ wss.on('connection', function connection(ws) {
     // ==========================================
     // NaN SHIELD: Retención del Último Valor Sano (AISLADO POR CLIENTE)
     // ==========================================
+    // [R16] Una entrada por cada clave que safeFloat() usa realmente.
     ws.lastValidValues = {
         status_on: 0.0, status_active: 0.0,
-        gyro1: 0.0, gyro2: 0.0, gyro3: 0.0,
-        accel1: 0.0, accel2: 0.0, accel3: 0.0,
-        eeg_alpha: 0.0, eeg_beta: 0.0, eeg_gamma: 0.0, eeg_theta: 0.0, eeg_delta: 0.0,
-        calm_state: 0.0, heart_rate: 75.0, calib_progress: 0.0, calm_final: 0.0,
-        bt_connected: 0.0, bt_disconnected: 1.0
+        calm_state: 0.0, heart_rate: 75.0, calib_progress: 0.0
     };
 
     function safeFloat(val, key) {
@@ -152,12 +149,6 @@ wss.on('connection', function connection(ws) {
                 }
             }
 
-            if (parsedData.type === 'bio_update' || parsedData.type === 'calm_update') {
-                if(parsedData.type === 'calm_update' && ws.udpPort) {
-                    ws.udpPort.send({ address: "/muse/v2/calm", args: [{ type: "f", value: parsedData.score }] });
-                }
-            }
-
             if (parsedData.type === 'full_telemetry') {
                 // Actualizar destino OSC si el frontend indica un nuevo IP/puerto
                 const reqIp   = (parsedData.oscIp   || '').trim();
@@ -171,73 +162,38 @@ wss.on('connection', function connection(ws) {
 
                 if (!ws.udpPort) return;
 
-                const {
-                    sensorOn, sensorActive, gyro, accel,
-                    alpha, beta, gamma, theta, delta,
-                    calm, bpm, calibProgress, calm_final, calib_completed, headset_id
-                } = parsedData;
+                // [R16] Sólo se extrae lo que aún tiene consumidor. Giroscopio,
+                // acelerómetro, bandas, calm_final, calib_completed y headset_id se
+                // retiraron junto al arreglo (ADR-0005).
+                const { sensorOn, sensorActive, calm, bpm, calibProgress } = parsedData;
 
                 let fOn = safeFloat(sensorOn ? 1 : 0, 'status_on');
                 let fAct = safeFloat(sensorActive ? 1 : 0, 'status_active');
                 const isOff = (fOn === 0 || fAct === 0);
 
-                let g1 = safeFloat(gyro ? gyro[0] : 0, 'gyro1');
-                let g2 = safeFloat(gyro ? gyro[1] : 0, 'gyro2');
-                let g3 = safeFloat(gyro ? gyro[2] : 0, 'gyro3');
-
-                let a1 = safeFloat(accel ? accel[0] : 0, 'accel1');
-                let a2 = safeFloat(accel ? accel[1] : 0, 'accel2');
-                let a3 = safeFloat(accel ? accel[2] : 0, 'accel3');
-
-                // Interpolación Visual: Permitimos que los últimos valores se mantengan al perder la conexión
+                // [R16] Sólo se conservan los tres valores que consume Unreal, más el
+                // progreso de calibración que alimenta el espejo hacia el navegador.
+                // Giroscopio, acelerómetro y bandas se retiraron con el arreglo: ver
+                // ADR-0005 y _backup/deprecated/20260828-arreglo-osc-18-floats.js.
+                // Todos pasan por el escudo de NaN, que existe por un fallo real.
                 const v = {
-                    1: fOn, 2: fAct,
-                    3: g1,
-                    4: g2,
-                    5: g3,
-                    6: a1,
-                    7: a2,
-                    8: a3,
-                    9: safeFloat(alpha, 'eeg_alpha'),
-                    10: safeFloat(beta, 'eeg_beta'),
-                    11: safeFloat(gamma, 'eeg_gamma'),
-                    12: safeFloat(theta, 'eeg_theta'),
-                    13: safeFloat(delta, 'eeg_delta'),
                     14: safeFloat(calm, 'calm_state'),
                     15: safeFloat(bpm, 'heart_rate'),
-                    16: safeFloat(calibProgress, 'calib_progress'),
-                    17: safeFloat(calm_final, 'calm_final'),
-                    18: safeFloat(calib_completed, 'calib_completed')
+                    16: safeFloat(calibProgress, 'calib_progress')
                 };
 
                 // Force scalar coercion: defends against truthy strings, NaN, undefined
-                const btOn  = (Number(fOn) === 1) ? 1.0 : 0.0;
-                const btOff = 1.0 - btOn;
+                const btOn = (Number(fOn) === 1) ? 1.0 : 0.0;
 
                 // Log every BT state transition so it's clearly visible
                 if (ws._lastBtOn !== btOn) {
-                    console.log(`[BT TRANSITION] btOn ${ws._lastBtOn ?? '∅'} → ${btOn}  |  OSC idx16=${btOn}  idx17=${btOff}  (sensorOn_raw=${sensorOn})`);
+                    console.log(`[BT TRANSITION] btOn ${ws._lastBtOn ?? '∅'} → ${btOn}  (sensorOn_raw=${sensorOn})`);
                     ws._lastBtOn = btOn;
                 }
 
-                // 18-float array. Active indices: 13=calm, 15=calibProgress, 16=btConnected, 17=btDisconnected
-                ws.udpPort.send({
-                    address: "/muse/data",
-                    args: [
-                        { type: "f", value: 0.0 }, { type: "f", value: 0.0 },
-                        { type: "f", value: 0.0 }, { type: "f", value: 0.0 }, { type: "f", value: 0.0 },
-                        { type: "f", value: 0.0 }, { type: "f", value: 0.0 }, { type: "f", value: 0.0 },
-                        { type: "f", value: 0.0 }, { type: "f", value: 0.0 }, { type: "f", value: 0.0 },
-                        { type: "f", value: 0.0 }, { type: "f", value: 0.0 },
-                        { type: "f", value: v[14] }, { type: "f", value: 0.0 },
-                        { type: "f", value: v[16] },   // idx 15: calibProgress  → muse/data16
-                        { type: "f", value: btOn },    // idx 16: BT connected   → muse/data17
-                        { type: "f", value: btOff }    // idx 17: BT disconnected → muse/data18
-                    ]
-                });
-
-                // [R4] Direcciones OSC dedicadas (ADR-0004). El arreglo /muse/data NO se
-                // toca; estas llevan cada valor con su tipo correcto y un nombre legible.
+                // [R4/R16] Las tres ÚNICAS direcciones que se emiten. Cada valor con su
+                // tipo correcto y su nombre. El arreglo /muse/data se retiró en R16 porque
+                // Unreal ya no lo lee (ADR-0005 reemplaza a ADR-0003).
                 // calm y heart_rate ya pasaron por el escudo de NaN (v[14], v[15]); el
                 // estado del sensor se coacciona a entero 0/1.
                 const sensorActiveInt = (fAct >= 0.5) ? 1 : 0;

@@ -1,7 +1,12 @@
 # ADR-0003 — El arreglo OSC `/muse/data` tiene longitud congelada de 18 floats
 
 - **Fecha:** 2026-08-25
-- **Estado:** **Aceptada**
+- **Estado:** **Reemplazada por [ADR-0005](adr-0005-retirada-del-arreglo-osc.md)** (2026-08-28)
+
+> El contenido de abajo se conserva tal cual: describe correctamente por qué el arreglo estuvo congelado
+> mientras el Blueprint de Unreal lo leía por índice. Esa premisa dejó de ser cierta cuando el director
+> confirmó que Unreal ya consume las direcciones dedicadas de ADR-0004 y no necesita nada más. El arreglo se
+> retiró en la ronda R16.
 
 ## Contexto
 

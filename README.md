@@ -63,22 +63,29 @@ Para mantener el repositorio liviano, estos recursos **no están en git** y debe
 
 El frontend web (`soul-charger-app.html`) **no** requiere el SDK: se conecta a la diadema vía Web Bluetooth usando `vendor/muse-js.bundle.js`, que sí está versionado.
 
-## ⚠️ ESQUEMA CRÍTICO DE PAYLOAD OSC (NO MODIFICAR)
+## Contrato OSC
 
-Para mantener la compatibilidad con el Blueprint (`Get OSC Message Float At Index`) en Unreal Engine, el mensaje principal de telemetría bajo la dirección `/muse/data` se envía como un arreglo monolítico de **18 Floats** (Índices del 0 al 17).
+El relay emite **exactamente tres mensajes** por tick, a 60 Hz, hacia la IP y el puerto que se configuran por
+panel. No hay ningún otro.
 
-Cualquier alteración en la longitud del arreglo provocará fallos de *Out-Of-Bounds* en Unreal Engine.
-
-### Índices Activos (Configuración Actual)
-El arreglo tiene **18 Floats** (Índices del 0 al 17). Todos los valores se envían como `0.0`, excepto los siguientes:
-
-| Índice (0-based) | Unreal `muse/dataN` | Valor |
+| Dirección | Tipo | Valor |
 |---|---|---|
-| 13 | muse/data14 | Calm Score (`0.0`–`1.0`) |
-| 15 | muse/data16 | Calibration Progress (`0.0`–`1.0`, llega a `1.0` al completar) |
-| 16 | muse/data17 | BT Connected — `1.0` mientras el headset está conectado, `0.0` si no |
-| 17 | muse/data18 | BT Disconnected — `1.0` mientras el headset está desconectado, `0.0` si no |
+| `/muse/calm` | `f` | Índice de calma, `0.0`–`1.0` |
+| `/muse/heart_rate` | `f` | Ritmo cardíaco en bpm |
+| `/muse/sensor_active` | `i` | Sensor activo, `0` / `1` |
 
-> Los índices 16 y 17 son siempre complementarios.
+En Unreal o TouchDesigner: un `OSC Message` por dirección, y `Get OSC Message Float At Index 0` para las dos
+primeras, `Get OSC Message Int At Index 0` para la tercera.
 
-*Nota:* Originalmente este arreglo enviaba datos de giroscopio, acelerómetro y ondas cerebrales, pero actualmente se silencian a `0.0` para optimizar el envío.
+> ⚠️ **El transporte es correcto; el contenido todavía no.** El índice de calma se calcula sobre pseudo-bandas
+> que no son un análisis espectral, y el ritmo cardíaco es un número derivado del EEG, no una medición
+> cardíaca. Están catalogados como `H1` y `H2` en `docs/historial/2026-08-25-analisis-para-traspaso.md` y los
+> arreglan las rondas `R7` y `R8`. No presentar estas cifras como medidas hasta entonces.
+
+**Histórico:** hasta la ronda `R16` se emitía además `/muse/data`, un arreglo monolítico de 18 floats que
+Unreal leía por índice, y `/muse/v2/calm`. Se retiraron al confirmarse que ya no tenían consumidor. El porqué
+está en `docs/adr/adr-0005-retirada-del-arreglo-osc.md` y el código en `_backup/deprecated/`.
+
+Existe también una dirección **entrante**, `/unreal/end_session`, pero no está comprobado que llegue nunca: el
+relay escucha en un puerto efímero que la gafa no puede conocer (`H9`). Es lo primero que resuelve la ronda
+`R10`, la de sincronización bidireccional.
