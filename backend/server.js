@@ -49,11 +49,13 @@ const wss = new WebSocket.Server({ port: WS_PORT });
 
 console.log("");
 console.log("╔══════════════════════════════════════════════════════════════╗");
-console.log("║   RELAY OSC v3 — BT idx 16/17 (muse/data17 + muse/data18)   ║");
+console.log("║   RELAY OSC v4 — tres direcciones dedicadas (ADR-0005)       ║");
 console.log("╠══════════════════════════════════════════════════════════════╣");
-console.log("║   WS port:    3000                                           ║");
-console.log("║   OSC array:  18 floats @ /muse/data                         ║");
-console.log("║   Active:     idx 13=calm   15=calib   16=BT_ON   17=BT_OFF  ║");
+console.log(`║   WS port:    ${WS_PORT}                                           ║`);
+console.log("║   Emite:      /muse/calm (f)                                 ║");
+console.log("║               /muse/heart_rate (f)                           ║");
+console.log("║               /muse/sensor_active (i)                        ║");
+console.log("║   Retirado:   /muse/data y /muse/v2/calm (R16)               ║");
 console.log("╚══════════════════════════════════════════════════════════════╝");
 console.log("");
 
