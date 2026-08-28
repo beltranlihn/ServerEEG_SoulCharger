@@ -80,14 +80,18 @@ html, body {
 
 /* ── MAIN BODY ── */
 .main-body { flex:1; min-height:0; display:flex; flex-direction:column; }
-.panels-container { flex:0 0 42%; display:flex; border-bottom:1px solid var(--border); }
+.panels-container { flex:1; min-height:0; display:flex; }
 .admin-panel {
     flex:1; display:flex; flex-direction:column;
     padding:1rem 1.5rem; overflow:hidden;
     border-right:1px solid var(--border);
 }
 .admin-panel:last-child { border-right:none; }
-.charts-row { flex:1; min-height:0; display:flex; flex-direction:column; }
+/* [R18] La fila de gráficas de sesión sale de la VISTA, no del programa: de ella
+   cuelgan el PNG que se guarda en research/ y la llamada a persistSession() que
+   registra la sesión. Se mantiene fuera de pantalla con tamaño real para que
+   Chart.js siga teniendo dimensiones y exportChart() funcione igual. */
+.charts-row { position:absolute; left:-99999px; top:0; width:900px; height:520px; display:flex; flex-direction:column; pointer-events:none; }
 .chart-col {
     flex:1; display:flex; flex-direction:column;
     border-bottom:1px solid var(--border); min-height:0; position:relative;
@@ -422,7 +426,7 @@ body.light-mode .big-circle-label,
 body.light-mode .small-circle-label { color: #6E6E73; }
 body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30); }
 /* ── [R17] OSC OUT: lo que sale por cable, en vivo ─────────────────────────── */
-.osc-out { background:rgba(4,6,18,.75); border:1px solid var(--border); padding:.6rem .8rem; margin-bottom:.85rem; flex-shrink:0; }
+.osc-out { background:rgba(4,6,18,.75); border:1px solid var(--border); padding:.6rem .8rem; margin-bottom:.85rem; flex:1; min-height:0; display:flex; flex-direction:column; }
 .osc-out-head { display:flex; justify-content:space-between; align-items:center; padding-bottom:.4rem; margin-bottom:.5rem; border-bottom:1px solid var(--border); }
 .osc-out-title { font-size:.62rem; letter-spacing:.15em; color:var(--accent); text-transform:uppercase; }
 .osc-rate { font-family:var(--font-mono); font-size:.58rem; letter-spacing:.08em; color:var(--text-sec); display:flex; align-items:center; gap:.4rem; }
@@ -433,14 +437,15 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
 .osc-rate.slow .rate-dot { background:var(--red); }
 .rate-dot.beat { opacity:1; }
 
-.sig + .sig { margin-top:.5rem; }
+.sig { flex:1; min-height:0; display:flex; flex-direction:column; }
+.sig + .sig { margin-top:.55rem; }
 .sig-head { display:flex; align-items:baseline; gap:.5rem; margin-bottom:.15rem; }
 .sig-name { font-size:.6rem; letter-spacing:.14em; color:var(--text-pri); text-transform:uppercase; }
 .sig-addr { font-family:var(--font-mono); font-size:.52rem; color:var(--text-sec); }
 .sig-sub  { font-size:.52rem; color:var(--text-sec); font-style:italic; }
 .sig-val  { margin-left:auto; font-family:var(--font-mono); font-size:.78rem; font-weight:600; color:var(--accent); }
 .sig-val.stale { color:var(--text-sec); }
-.sig-canvas { display:block; width:100%; height:38px; background:rgba(0,0,0,.30); border:1px solid rgba(74,127,255,.10); }
+.sig-canvas { display:block; width:100%; flex:1; min-height:54px; background:rgba(0,0,0,.30); border:1px solid rgba(74,127,255,.10); }
 .sig.fast .sig-name { color:#7CE0C8; }
 .sig.fast .sig-val  { color:#7CE0C8; }
 
@@ -495,7 +500,7 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
                     <canvas class="sig-canvas" id="cv-calm-1"></canvas>
                 </div>
                 <div class="sig">
-                    <div class="sig-head"><span class="sig-name">Heart rate</span><span class="sig-addr">/muse/heart_rate</span><span class="sig-sub">bpm</span><span class="sig-val" id="sig-hr-1">—</span></div>
+                    <div class="sig-head"><span class="sig-name">Heart rate</span><span class="sig-addr">/muse/heart_rate</span><span class="sig-sub">bpm · trace synthesized</span><span class="sig-val" id="sig-hr-1">—</span></div>
                     <canvas class="sig-canvas" id="cv-hr-1"></canvas>
                 </div>
                 <div class="sig fast">
@@ -513,10 +518,6 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
                     <div class="info-group"><span class="label">Target IP</span><input type="text" id="inp-osc-ip-1" class="dev-input" value="127.0.0.1"></div>
                     <div class="info-group"><span class="label">Target Port</span><input type="number" id="inp-osc-port-1" class="dev-input" value="8000"></div>
                     <button id="btn-update-conn-1" class="btn-dev-action">Verify / Update P1</button>
-                    <div class="log-container">
-                        <div class="log-label">Diagnostic P1</div>
-                        <div id="osc-log-1" class="osc-log"></div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -547,7 +548,7 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
                     <canvas class="sig-canvas" id="cv-calm-2"></canvas>
                 </div>
                 <div class="sig">
-                    <div class="sig-head"><span class="sig-name">Heart rate</span><span class="sig-addr">/muse/heart_rate</span><span class="sig-sub">bpm</span><span class="sig-val" id="sig-hr-2">—</span></div>
+                    <div class="sig-head"><span class="sig-name">Heart rate</span><span class="sig-addr">/muse/heart_rate</span><span class="sig-sub">bpm · trace synthesized</span><span class="sig-val" id="sig-hr-2">—</span></div>
                     <canvas class="sig-canvas" id="cv-hr-2"></canvas>
                 </div>
                 <div class="sig fast">
@@ -565,10 +566,6 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
                     <div class="info-group"><span class="label">Target IP</span><input type="text" id="inp-osc-ip-2" class="dev-input" value="192.168.1.50"></div>
                     <div class="info-group"><span class="label">Target Port</span><input type="number" id="inp-osc-port-2" class="dev-input" value="8000"></div>
                     <button id="btn-update-conn-2" class="btn-dev-action">Verify / Update P2</button>
-                    <div class="log-container">
-                        <div class="log-label">Diagnostic P2</div>
-                        <div id="osc-log-2" class="osc-log"></div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -711,17 +708,50 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
     // lo disimularía, que es justo el fallo mudo que queremos que se note.
     const SCOPE_WINDOW_MS = 8000;
 
+    // [R18] Trazo tipo electrocardiograma. NO es una señal cardíaca medida: es un
+    // complejo PQRST dibujado a la frecuencia que marca el pulso. Sirve para leer
+    // el ritmo de un vistazo, como un monitor clínico, pero la FORMA es sintética.
+    // Cuando R7 lea el PPG real, seguirá siendo sintética salvo que se dibuje la
+    // onda de verdad. Etiquetado como «synth» en la interfaz para no engañar.
+    function ecgWave(u) {
+        const g = (c, w, a) => a * Math.exp(-Math.pow((u - c) / w, 2));
+        return g(0.18, 0.028, 0.12)    // P
+             - g(0.36, 0.010, 0.16)    // Q
+             + g(0.40, 0.009, 1.00)    // R
+             - g(0.44, 0.013, 0.28)    // S
+             + g(0.66, 0.050, 0.30);   // T
+    }
+
     class SignalScope {
-        constructor(canvasId, { min, max, color, decimals = 2, unit = '' }) {
+        constructor(canvasId, { min, max, color, decimals = 2, unit = '', mode = 'line', windowMs = SCOPE_WINDOW_MS }) {
             this.cv = document.getElementById(canvasId);
             this.min = min; this.max = max; this.color = color;
             this.decimals = decimals; this.unit = unit;
+            this.mode = mode; this.windowMs = windowMs;
             this.pts = [];            // {t, v}
+            this.phase = 0;           // sólo modo ecg: posición dentro del latido
+            this.lastPushT = null;
+            this.shown = null;        // valor que se muestra en cifras (bpm en ecg)
         }
         push(v, t) {
             if (!this.cv || v === null || v === undefined || Number.isNaN(v)) return;
-            this.pts.push({ t, v });
-            const corte = t - SCOPE_WINDOW_MS;
+            this.shown = v;
+            if (this.mode === 'ecg') {
+                // Se generan varias sub-muestras por tick: a 60 Hz un latido son
+                // ~50 puntos y el pico R (0,9 % del ciclo) se perdería por aliasing.
+                const dt = this.lastPushT === null ? 0 : Math.min(t - this.lastPushT, 250);
+                this.lastPushT = t;
+                const ciclosPorMs = Math.max(30, Math.min(200, v)) / 60 / 1000;
+                const N = 8;
+                for (let i = 1; i <= N; i++) {
+                    const tt = t - dt + (dt * i) / N;
+                    this.phase = (this.phase + (dt / N) * ciclosPorMs) % 1;
+                    this.pts.push({ t: tt, v: ecgWave(this.phase) });
+                }
+            } else {
+                this.pts.push({ t, v });
+            }
+            const corte = t - this.windowMs;
             while (this.pts.length && this.pts[0].t < corte) this.pts.shift();
         }
         draw(now) {
@@ -740,7 +770,7 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
 
             if (this.pts.length < 2) return;
             const span = this.max - this.min || 1;
-            const x = (t) => w - ((now - t) / SCOPE_WINDOW_MS) * w;
+            const x = (t) => w - ((now - t) / this.windowMs) * w;
             const y = (v) => h - ((Math.min(Math.max(v, this.min), this.max) - this.min) / span) * (h - 4) - 2;
 
             g.strokeStyle = this.color; g.lineWidth = Math.max(1, dpr * 1.2);
@@ -755,7 +785,7 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
             g.beginPath(); g.arc(x(last.t), y(last.v), Math.max(1.5, dpr * 1.6), 0, Math.PI * 2); g.fill();
             g.globalAlpha = 1;
         }
-        get lastValue() { return this.pts.length ? this.pts[this.pts.length - 1].v : null; }
+        get lastValue() { return this.mode === 'ecg' ? this.shown : (this.pts.length ? this.pts[this.pts.length - 1].v : null); }
     }
 
     // Un solo bucle de dibujo para todos los paneles. requestAnimationFrame se
@@ -1302,7 +1332,7 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
             // [R17] Osciloscopios de las tres señales que salen por OSC
             this.scopes = {
                 calm:  new SignalScope(`cv-calm-${panelId}`,  { min: 0,  max: 1,   color: '#4A7FFF', decimals: 3 }),
-                hr:    new SignalScope(`cv-hr-${panelId}`,    { min: 40, max: 120, color: '#E5B45E', decimals: 0, unit: ' bpm' }),
+                hr:    new SignalScope(`cv-hr-${panelId}`,    { min: -0.45, max: 1.15, color: '#E5B45E', decimals: 0, unit: ' bpm', mode: 'ecg', windowMs: 4500 }),
                 still: new SignalScope(`cv-still-${panelId}`, { min: 0,  max: 1,   color: '#7CE0C8', decimals: 3 }),
             };
             this.valEls = {
@@ -1466,6 +1496,13 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
                 if (!this.chartExported) { this.chartExported = true; this.exportChart(); }
                 return;
             }
+            // [R18] Está fuera de vista y sólo alimenta el PNG exportado, así que
+            // se redibuja a ~10 Hz en vez de a 60. Reduce el coste que R14 dejó
+            // abierto sin cambiar el resultado: el delta de la sesión se calcula
+            // sobre sessionCalmValues, no sobre los puntos de esta gráfica.
+            if (this.lastChartPush && (Date.now() - this.lastChartPush) < 100) return;
+            this.lastChartPush = Date.now();
+
             const label = (elapsed / 1000).toFixed(1) + 's';
             this.chart.data.labels.push(label);
             this.chart.data.datasets[0].data.push(stressValue);

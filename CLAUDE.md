@@ -130,10 +130,16 @@ Tras la calibración, el progreso se mantiene en `1.0` durante 5 s y luego cae a
 - **Dos paneles por defecto** en el admin: `P1 → 127.0.0.1:8000` y `P2 → 192.168.1.50:8000`. La IP de P2 está escrita en el código (`:1773`).
 - **Estado en `localStorage`**, no en servidor: `soulcharger_users`, `soulcharger_sessions`, `soulcharger_theme`, `soulcharger_seed_version`.
 - **Vista Research**: `soul-charger-admin.html?view=research`, refresco cada 2 s.
-- **Monitor OSC en vivo** (R17): bajo cada panel, tres osciloscopias con lo que sale por cable y la **cadencia
-  real en Hz**. Si baja de 30 se pone en rojo — es el aviso del estrangulamiento que faltaba. El **dibujo** va
-  por `requestAnimationFrame` (se para con la pestaña oculta, a propósito); las **cifras y la cadencia** van
-  por `setInterval`, para que no se queden congeladas con pinta de actuales.
+- **Monitor OSC en vivo** (R17/R18): bajo cada panel, tres osciloscopias con lo que sale por cable y la
+  **cadencia real en Hz**. Si baja de 30 se pone en rojo — es el aviso del estrangulamiento que faltaba. El
+  **dibujo** va por `requestAnimationFrame` (se para con la pestaña oculta, a propósito); las **cifras y la
+  cadencia** van por `setInterval`, para que no se queden congeladas con pinta de actuales.
+- ⚠️ **El trazo de pulso es un electrocardiograma SINTÉTICO** (R18): un complejo PQRST dibujado a la frecuencia
+  que marca el bpm, no una onda cardíaca medida. Etiquetado «trace synthesized» en la interfaz. Ni siquiera
+  con el PPG real de R7 será una onda medida, salvo que se dibuje explícitamente.
+- ⚠️ **La gráfica de sesión de Chart.js sigue existiendo, fuera de pantalla** (`.charts-row`, R18). No es
+  decoración muerta: de ella cuelgan el PNG que se guarda en `research/` y la llamada a `persistSession()`.
+  Si alguien borra ese bloque del DOM, **las sesiones dejan de registrarse en silencio**.
 - El navegador puede guardar gráficas (`save_chart_image` por WebSocket); el servidor las escribe en `research/` como `sesion_P{n}{sufijo}_{timestamp}.png`.
 
 ## Docs del repo

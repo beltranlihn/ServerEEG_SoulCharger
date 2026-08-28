@@ -7,6 +7,49 @@ hizo.
 
 ---
 
+## R18 · Limpieza de la interfaz y ECG — 2026-08-28 — Más alto para las señales, pulso como electrocardiograma
+
+Encargo del director tras revisar R17: *«quitaría el gráfico de abajo de la página, solo los de cada
+usuario»*, *«eliminaría diagnostics y así ganamos más espacio todavía»*, y *«el de heart rate lo mostraría
+como un electrocardiograma»*.
+
+**Qué se hizo.**
+
+1. **La gráfica de sesión sale de la vista, no del programa.** Es el punto delicado: de ella cuelgan el PNG
+   que se guarda en `research/` y la llamada a `persistSession()` que registra la sesión. Borrarla del DOM
+   habría dejado de registrar sesiones **en silencio**. Se mantiene fuera de pantalla con tamaño real
+   (900×520) para que Chart.js conserve dimensiones y `exportChart()` funcione igual.
+2. **Redibujada a 10 Hz** en vez de 60, ya que sólo alimenta el PNG. El delta de la sesión se calcula sobre
+   `sessionCalmValues`, no sobre los puntos de esa gráfica, así que el resultado no cambia.
+3. **Fuera el bloque *Diagnostic*** de los dos paneles. `logOSC()` ya comprobaba que el elemento existiera.
+4. **Las tres señales reparten el alto ganado**, con mínimo de 54 px cada una.
+5. **Pulso como electrocardiograma**: un complejo PQRST generado a la frecuencia que marca el bpm, con **8
+   sub-muestras por tick** — a 60 Hz un latido son ~50 puntos y el pico R, que ocupa el 0,9 % del ciclo, se
+   perdería por aliasing.
+
+**Medido.**
+
+- `offsetWidth` del contenedor de la gráfica oculta: **900×260**, no cero. Era el riesgo concreto de sacarla
+  de la vista — un contenedor de tamaño cero habría producido PNG vacíos sin avisar.
+- Layout sin recortes: **676 px de contenido en 676 visibles**, con el bloque de señales ocupando 239 px y el
+  panel de OSC 166 px.
+- Diagnóstico eliminado del DOM y sin errores en consola.
+
+**Trampas encontradas.** Ninguna nueva, pero sí una evitada a conciencia: la petición era «quitar la gráfica»
+y la lectura literal habría roto el registro de sesiones. La dependencia no era visible desde la interfaz —
+sólo leyendo `exportChart()` se ve que el PNG y `persistSession()` cuelgan del mismo objeto de Chart.js.
+
+**Sobre el electrocardiograma, con todas las letras.** El trazo **no es una señal cardíaca medida**: es una
+forma de onda dibujada a la frecuencia del bpm. Y el bpm sigue siendo el inventado de `H2`. Se etiquetó
+**«trace synthesized»** en la interfaz porque un trazo con forma de ECG es especialmente convincente, y sería
+fácil que alguien lo tomara por una medición. Incluso cuando `R7` lea el PPG real, la **forma** seguirá siendo
+sintética salvo que se dibuje explícitamente la onda medida.
+
+**Sin verificar.** El dibujo del canvas, incluido el trazo del ECG. Misma causa que en R17: `requestAnimation
+Frame` no dispara sin ventana visible.
+
+---
+
 ## R17 · Monitor OSC en vivo — 2026-08-28 — Ver en la interfaz lo que sale por cable
 
 Encargo del director: *«debiera mostrarnos abajo de cada usuario los datos que se están enviando… pero

@@ -207,11 +207,31 @@ tiempo real**.
       dispara sin ventana visible, así que las curvas están sin mirar.
 - [ ] Falta llevarlo a `soul-charger-app.html`, que tiene otra interfaz (la esfera) y un solo usuario.
 
+### R18 · Limpieza de la interfaz y ECG — ✅ CERRADA (2026-08-28)
+
+Encargo del director: quitar la gráfica de abajo y el bloque de diagnóstico para ganar alto, agrandar las tres
+señales, y mostrar el pulso como electrocardiograma.
+
+- [x] La fila de gráficas de sesión sale de la **vista**, no del programa: se mantiene fuera de pantalla con
+      tamaño real (900×520) porque de ella cuelgan el PNG de `research/` y `persistSession()`. Verificado que
+      `offsetWidth` sigue siendo 900×260, no cero: la exportación no se rompe.
+- [x] Redibujada a **10 Hz** en vez de 60, ya que sólo alimenta el PNG. Cierra parte de R14.
+- [x] Eliminado el bloque *Diagnostic* de los dos paneles. `logOSC()` ya era tolerante a que no exista.
+- [x] Las tres señales reparten el alto ganado (`flex:1`, mínimo 54 px cada una).
+- [x] Pulso como **electrocardiograma**: complejo PQRST a la frecuencia del bpm, con 8 sub-muestras por tick
+      para que el pico R no se pierda por aliasing.
+- [x] Etiquetado **«trace synthesized»** en la interfaz: parece un ECG real y no lo es.
+- [x] Verificado que el layout no recorta: 676 px de contenido en 676 visibles.
+- [ ] **Sin verificar:** el dibujo del canvas, incluido el trazo del ECG. Misma causa que R17.
+
 ### R14 · Coste de dibujo de la gráfica a 60 Hz — pendiente de medir
 
 Detectado al revisar el cambio de cadencia, **sin medir todavía**: no optimizar a ciegas.
 
-- [ ] Medir el coste real de `chart.update('none')` (`soul-charger-admin.html:1262`), que ahora corre 60 veces
+> **Parcialmente atendido en R18:** la gráfica de sesión pasó a redibujarse a 10 Hz al quedar fuera de vista.
+> Queda medir el coste con duraciones largas, que era el escenario preocupante.
+
+- [ ] Medir el coste real de `chart.update('none')`, que antes corría 60 veces
       por segundo y por panel en vez de 20, con el dataset creciendo al triple dentro de `globalDurationMs`.
 - [ ] Probarlo con una **duración larga** (el campo «Measurement duration» es del operador): con 300 s son
       ~18.000 puntos redibujados cada 16 ms, en la misma máquina que mueve Unreal. Con los 10 s por defecto
