@@ -629,6 +629,19 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
     const MIN_CALIBRATION_SAMPLES = 200;       // el tiempo no basta: sin muestras la desviación no es fiable
     const MAX_TICK_DELTA_MS       = 250;       // un salto mayor es una pausa del navegador, no tiempo medido
 
+    // ── [R13] Capa rápida: QUIETUD FÍSICA ─────────────────────────────────────
+    // Señal distinta del índice de calma, con requisitos opuestos (ADR-0006).
+    // Mide relajación MUSCULAR, no estado cortical: la amplitud cruda de los
+    // canales frontales está dominada por la tensión de cara, mandíbula y ojos.
+    // Es enorme frente al fondo, inmediata y funciona sin entrenamiento — por eso
+    // sirve para que el usuario sienta que controla algo.
+    //
+    // NO mezclar con el índice de calma: éste RECHAZA el artefacto muscular y la
+    // quietud responde GRACIAS a él. Es la misma magnitud usada al revés.
+    const STILLNESS_ELECTRODES   = [1, 2];  // AF7 y AF8 (TP9=0, AF7=1, AF8=2, TP10=3)
+    const STILLNESS_TAU_MS       = 120;     // constante de tiempo del alisado, en ms
+    const STILLNESS_Z_CLAMP      = 2.5;     // recorte del z-score antes de normalizar
+
     let globalDurationMs = 10000;
     let researchChart = null;
     let deepCharts = [];
@@ -1139,6 +1152,10 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
             this.calmFinal = 0.0; this.calibTriggerFired = false;
             this.calibResetTimerId = null; this.calibProgressLocked = false;
             this.calibActiveMs = 0; this.lastTickAt = null; this.sessionRunningMs = 0;
+            // [R13] Capa rápida, independiente del pipeline de calma
+            this.frontalAmp = null; this.frontalAmpAt = null;
+            this.stillnessSamples = []; this.stillnessMean = null; this.stillnessStd = null;
+            this.stillness = 0.5;
             this.sessionCalmValues = [];
             this.chart = null; this.chartStartTime = null; this.chartExported = false;
             this.rawAlpha = 0.5; this.rawBeta = 0.5; this.rawGamma = 0.1;
@@ -1218,6 +1235,7 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
                 theta:this.rawTheta, delta:this.rawDelta,
                 calm:calmScore, bpm:this.currentBpm,
                 calibProgress:this.calibrationProgress, calm_final:this.calmFinal,
+                stillness:this.stillness,
                 calib_completed:outCalibCompleted, headset_id:this.headsetName
             }));
         }
@@ -1369,6 +1387,18 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
 
                 const currentRatio = this.rawAlpha / (this.rawBeta + 0.4 * this.rawGamma + 0.001);
 
+                // [R13] Quietud física. Ruta PROPIA: no pasa por la media móvil de
+                // SMOOTHING_SECONDS, que mataría la sensación de control. Se invierte
+                // porque más amplitud = más tensión = menos quietud. Sin baseline se
+                // emite 0.5 neutro, no un número inventado.
+                if (this.stillnessMean !== null && this.frontalAmp !== null) {
+                    const zs = Math.min(Math.max((this.frontalAmp - this.stillnessMean) / this.stillnessStd,
+                                                 -STILLNESS_Z_CLAMP), STILLNESS_Z_CLAMP);
+                    this.stillness = 1 - (zs + STILLNESS_Z_CLAMP) / (2 * STILLNESS_Z_CLAMP);
+                } else {
+                    this.stillness = 0.5;
+                }
+
                 if (this.appState === 'WARMUP') {
                     const elapsed = Date.now() - this.warmupStartTime;
                     if (elapsed >= 2000) {
@@ -1386,6 +1416,7 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
                         this.broadcastFullTelemetry(0.0); return;
                     }
                     this.calibrationData.push(currentRatio);
+                    if (this.frontalAmp !== null) this.stillnessSamples.push(this.frontalAmp);
                     this.calibActiveMs += dt;
                     // Se exigen las DOS condiciones: tiempo activo suficiente para que
                     // la persona se asiente, y muestras suficientes para que la
@@ -1400,6 +1431,17 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
                         this.baselinePromedio = this.calibrationData.reduce((a,b) => a+b, 0) / this.calibrationData.length;
                         const variance = this.calibrationData.reduce((a,b) => a + Math.pow(b - this.baselinePromedio, 2), 0) / this.calibrationData.length;
                         this.baselineStdDev = Math.max(Math.sqrt(variance), 0.0001);
+
+                        // [R13] Baseline propio de la capa rápida: del mismo tramo de
+                        // calibración, pero sobre la amplitud frontal, no sobre el ratio.
+                        if (this.stillnessSamples.length > 10) {
+                            const sm = this.stillnessSamples.reduce((a,b) => a+b, 0) / this.stillnessSamples.length;
+                            const sv = this.stillnessSamples.reduce((a,b) => a + Math.pow(b - sm, 2), 0) / this.stillnessSamples.length;
+                            this.stillnessMean = sm;
+                            this.stillnessStd  = Math.max(Math.sqrt(sv), 0.0001);
+                            this.logOSC(`[P${this.panelId}] Stillness baseline: ${sm.toFixed(1)} ± ${this.stillnessStd.toFixed(1)}`);
+                        }
+
                         this.setAppState('RUNNING', `Baseline: ${this.baselinePromedio.toFixed(2)}`);
                         if (this.progContainer) this.progContainer.style.display = 'none';
 
@@ -1464,6 +1506,8 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
             this.baselinePromedio = 1; this.baselineStdDev = 0.001;
             this.smoothedCalmScore = 0.5; this.lastNCampsScores = [];
             this.calibActiveMs = 0; this.lastTickAt = null;
+            this.frontalAmp = null; this.frontalAmpAt = null;
+            this.stillnessSamples = []; this.stillnessMean = null; this.stillnessStd = null; this.stillness = 0.5;
             this.sessionTotalTicks = 0; this.sessionCalmTicks = 0;
             this.calmFinal = 0.0; this.calibTriggerFired = false;
             if (this.calibResetTimerId) { clearTimeout(this.calibResetTimerId); this.calibResetTimerId = null; }
@@ -1491,6 +1535,8 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
             this.calibrationData = []; this.calibrationProgress = 0; this.baselinePromedio = 1;
             this.baselineStdDev = 0.001; this.smoothedCalmScore = 0.5; this.lastNCampsScores = [];
             this.calibActiveMs = 0; this.lastTickAt = null;
+            this.frontalAmp = null; this.frontalAmpAt = null;
+            this.stillnessSamples = []; this.stillnessMean = null; this.stillnessStd = null; this.stillness = 0.5;
             this.sessionTotalTicks = 0; this.sessionCalmTicks = 0;
             this.calmFinal = 0.0; this.calibTriggerFired = false;
             if (this.calibResetTimerId) { clearTimeout(this.calibResetTimerId); this.calibResetTimerId = null; }
@@ -1532,16 +1578,29 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
             if (this.btnSimulate) { this.btnSimulate.classList.add('sim-active'); this.btnSimulate.innerText = `◈ Stop Sim P${this.panelId}`; }
             if (this.btnResetCalib) this.btnResetCalib.style.display = 'block';
 
-            let t = 0;
+            let t = 0, tLast = null;
             this._simInterval = setInterval(() => {
-                // t avanza 1,0 por segundo real: así las ondas simuladas conservan
-                // su velocidad aunque cambie la cadencia (antes 0.05 fijo a 50 ms).
-                t += TICK_MS / 1000;
+                // t avanza 1,0 por segundo REAL, medido con el reloj. Usar TICK_MS
+                // nominal ataba la velocidad de las ondas a que el temporizador
+                // cumpliera: con la pestaña estrangulada a 1,5 Hz avanzaban 40 veces
+                // más lento y la señal parecía congelada. Misma lección que R15.
+                const tNow = Date.now();
+                t += (tLast === null ? TICK_MS : Math.min(tNow - tLast, MAX_TICK_DELTA_MS)) / 1000;
+                tLast = tNow;
                 this.rawAlpha = Math.max(0, Math.min(1, 0.45 + 0.20 * Math.sin(t * 0.30) + 0.05 * Math.sin(t * 1.70) + (Math.random() - 0.5) * 0.08));
                 this.rawBeta  = Math.max(0, Math.min(1, 0.35 + 0.10 * Math.sin(t * 0.50 + 1.0) + (Math.random() - 0.5) * 0.06));
                 this.rawTheta = Math.max(0, Math.min(1, 0.40 + 0.15 * Math.sin(t * 0.20 + 2.0) + (Math.random() - 0.5) * 0.07));
                 this.rawDelta = Math.max(0, Math.min(1, 0.30 + 0.10 * Math.sin(t * 0.10 + 3.0) + (Math.random() - 0.5) * 0.05));
                 this.rawGamma = Math.max(0, Math.min(1, 0.08 + 0.03 * Math.sin(t * 0.80) + Math.random() * 0.02));
+                // [R13] Amplitud frontal simulada, en µV, para que la quietud tenga señal
+                // en modo Simulate. Oscila lento (respiración) con ruido y algún pico de
+                // tensión, que es lo que hace un rostro real.
+                const tension = 40 + 12 * Math.sin(t * 0.22) + 6 * Math.sin(t * 0.9 + 1.3)
+                              + (Math.random() - 0.5) * 5
+                              + (Math.random() < 0.004 ? 60 : 0);
+                this.frontalAmp = this.frontalAmp === null ? tension
+                                : this.frontalAmp + (tension - this.frontalAmp) * 0.25;
+                this.frontalAmpAt = Date.now();
                 this.currentBpm = 72 + 8 * Math.sin(t * 0.15) + 3 * Math.sin(t * 0.8) + (Math.random() - 0.5) * 2;
                 this.currentGyro[0] = 0.5 * Math.sin(t * 0.10);
                 this.currentGyro[1] = 0.3 * Math.sin(t * 0.13 + 1);
@@ -1571,6 +1630,8 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
             this.baselinePromedio = 1; this.baselineStdDev = 0.001;
             this.smoothedCalmScore = 0.5; this.lastNCampsScores = [];
             this.calibActiveMs = 0; this.lastTickAt = null;
+            this.frontalAmp = null; this.frontalAmpAt = null;
+            this.stillnessSamples = []; this.stillnessMean = null; this.stillnessStd = null; this.stillness = 0.5;
             this.sessionTotalTicks = 0; this.sessionCalmTicks = 0;
             this.calmFinal = 0.0; this.calibTriggerFired = false;
             if (this.calibResetTimerId) { clearTimeout(this.calibResetTimerId); this.calibResetTimerId = null; }
@@ -1669,6 +1730,19 @@ body.light-mode .btn-connect:hover { box-shadow: 0 0 24px rgba(107,138,254,.30);
                     if (!samples || samples.length === 0) return;
                     const avgPower = samples.reduce((acc, v) => acc + Math.abs(v), 0) / samples.length;
                     if (avgPower >= 1.0) this.sensorActive = 1;
+                    // [R13] Sólo AF7/AF8 alimentan la quietud. Alisado exponencial por
+                    // TIEMPO, no por paquete: la constante vale igual sea cual sea la
+                    // cadencia con que lleguen las lecturas (lección de R15).
+                    if (STILLNESS_ELECTRODES.includes(reading.electrode)) {
+                        const now = Date.now();
+                        if (this.frontalAmp === null) { this.frontalAmp = avgPower; }
+                        else {
+                            const dt = Math.min(now - this.frontalAmpAt, MAX_TICK_DELTA_MS);
+                            const k  = 1 - Math.exp(-dt / STILLNESS_TAU_MS);
+                            this.frontalAmp += (avgPower - this.frontalAmp) * k;
+                        }
+                        this.frontalAmpAt = now;
+                    }
                     this.rawAlpha = this.smooth(this.rawAlpha, (avgPower * 0.1) % 1.0, this.dynamicAlphaEma);
                     this.rawBeta  = this.smooth(this.rawBeta,  (avgPower * 0.2) % 1.0, 0.05);
                     this.rawTheta = this.smooth(this.rawTheta, (avgPower * 0.15) % 1.0, 0.05);

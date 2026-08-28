@@ -52,9 +52,10 @@ console.log("╔═════════════════════�
 console.log("║   RELAY OSC v4 — tres direcciones dedicadas (ADR-0005)       ║");
 console.log("╠══════════════════════════════════════════════════════════════╣");
 console.log(`║   WS port:    ${WS_PORT}                                           ║`);
-console.log("║   Emite:      /muse/calm (f)                                 ║");
+console.log("║   Emite:      /muse/calm (f)          lento, estado          ║");
 console.log("║               /muse/heart_rate (f)                           ║");
 console.log("║               /muse/sensor_active (i)                        ║");
+console.log("║               /muse/stillness (f)     rápido, agencia        ║");
 console.log("║   Retirado:   /muse/data y /muse/v2/calm (R16)               ║");
 console.log("╚══════════════════════════════════════════════════════════════╝");
 console.log("");
@@ -73,7 +74,8 @@ wss.on('connection', function connection(ws) {
     // [R16] Una entrada por cada clave que safeFloat() usa realmente.
     ws.lastValidValues = {
         status_on: 0.0, status_active: 0.0,
-        calm_state: 0.0, heart_rate: 75.0, calib_progress: 0.0
+        calm_state: 0.0, heart_rate: 75.0, calib_progress: 0.0,
+        stillness: 0.5
     };
 
     function safeFloat(val, key) {
@@ -167,7 +169,7 @@ wss.on('connection', function connection(ws) {
                 // [R16] Sólo se extrae lo que aún tiene consumidor. Giroscopio,
                 // acelerómetro, bandas, calm_final, calib_completed y headset_id se
                 // retiraron junto al arreglo (ADR-0005).
-                const { sensorOn, sensorActive, calm, bpm, calibProgress } = parsedData;
+                const { sensorOn, sensorActive, calm, bpm, calibProgress, stillness } = parsedData;
 
                 let fOn = safeFloat(sensorOn ? 1 : 0, 'status_on');
                 let fAct = safeFloat(sensorActive ? 1 : 0, 'status_active');
@@ -181,7 +183,10 @@ wss.on('connection', function connection(ws) {
                 const v = {
                     14: safeFloat(calm, 'calm_state'),
                     15: safeFloat(bpm, 'heart_rate'),
-                    16: safeFloat(calibProgress, 'calib_progress')
+                    16: safeFloat(calibProgress, 'calib_progress'),
+                    // [R13] Capa rápida de quietud física. Señal distinta del índice de
+                    // calma, con latencia distinta: no fundirlas (ADR-0006).
+                    19: safeFloat(stillness, 'stillness')
                 };
 
                 // Force scalar coercion: defends against truthy strings, NaN, undefined
@@ -202,6 +207,7 @@ wss.on('connection', function connection(ws) {
                 ws.udpPort.send({ address: "/muse/calm",          args: [{ type: "f", value: v[14] }] });
                 ws.udpPort.send({ address: "/muse/heart_rate",    args: [{ type: "f", value: v[15] }] });
                 ws.udpPort.send({ address: "/muse/sensor_active", args: [{ type: "i", value: sensorActiveInt }] });
+                ws.udpPort.send({ address: "/muse/stillness",      args: [{ type: "f", value: v[19] }] });
 
                 // Eliminado el envío de /muse/headset para no romper el Blueprint de Unreal
 

@@ -57,10 +57,20 @@ El relay emite **exactamente tres mensajes** por tick, a 60 Hz. No hay ningún o
 | `/muse/calm` | `f` | Índice de calma, `0.0`–`1.0` | ⚠️ transporte correcto, **contenido no válido** (H1) hasta R8 |
 | `/muse/heart_rate` | `f` | Ritmo cardíaco en bpm | ⚠️ transporte correcto, **valor inventado** (H2) hasta R7 |
 | `/muse/sensor_active` | `i` | Sensor activo, `0` / `1` | ⚠️ entero correcto, **su veracidad** la arreglan R3/R8 (H4/H8) |
+| `/muse/stillness` | `f` | Quietud física, `0.0`–`1.0` | ✅ mide lo que dice: relajación **muscular**, no cortical |
+
+**⚠️ `calm` y `stillness` NO son la misma señal, y no deben fundirse** (ADR-0006). La calma es *estado*: lenta,
+suavizada 5,75 s, y **rechaza** el artefacto muscular. La quietud es *agencia*: llega cada ~47 ms sin media
+móvil, sale de la amplitud frontal (AF7/AF8) y responde **gracias** a ese mismo artefacto. Es la misma
+magnitud física usada al revés. Si alguien las une en un número, al mejorar la validez la experiencia se queda
+muerta, y al hacerla responder el registro se llena de tensión mandibular etiquetada como calma.
 
 > **Nodos en Unreal / TouchDesigner:** un `OSC Message` por dirección →
-> `Get OSC Message Float At Index 0` para `/muse/calm` y `/muse/heart_rate`;
+> `Get OSC Message Float At Index 0` para `/muse/calm`, `/muse/heart_rate` y `/muse/stillness`;
 > `Get OSC Message Int At Index 0` para `/muse/sensor_active`.
+>
+> **Para mover algo que el usuario sienta que controla, usa `/muse/stillness`, no `/muse/calm`.** La calma se
+> mueve en segundos: sirve para el color o el tamaño de fondo, no para la respuesta inmediata.
 
 **Retirado en R16 — no volver a añadirlo sin leer la ADR-0005:**
 `/muse/data` (el arreglo de 18 floats) y `/muse/v2/calm`. El director confirmó que Unreal ya consume las

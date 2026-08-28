@@ -37,7 +37,8 @@ Los números de línea orientan, no son exactos: verificar el símbolo por búsq
 | Relay WS→UDP | HTTP estático 5500 + WebSocket 3000 → OSC/UDP 8000 | `backend/server.js` (261 L) | ✅ | — |
 | `UDPPort` por cliente | Un socket UDP por WebSocket; estado colgado de `ws` | `backend/server.js:82-88` | ✅ base de multi-panel | D7 |
 | ~~Empaquetado `/muse/data`~~ | Arreglo de 18 floats. **Retirado en R16**: Unreal ya no lo lee | `_backup/deprecated/20260828-arreglo-osc-18-floats.js` | 🗄️ archivado | adr-0005 |
-| Direcciones OSC | `/muse/calm` (f), `/muse/heart_rate` (f), `/muse/sensor_active` (i). Las **tres únicas** que se emiten | `backend/server.js:204-206` | ✅ transporte (valor pulso = R7, calma = R8) | R4/R16, adr-0004, adr-0005 |
+| Direcciones OSC | `/muse/calm` (f), `/muse/heart_rate` (f), `/muse/sensor_active` (i), `/muse/stillness` (f). Las **cuatro únicas** | `backend/server.js:207-210` | ✅ transporte (valor pulso = R7, calma = R8) | R4/R13/R16, adr-0004/5/6 |
+| Capa rápida de quietud | Amplitud de AF7/AF8, alisado de 120 ms, z-score invertido contra baseline propio. **Ruta separada** del índice de calma | `soul-charger-{admin,app}.html` (`frontalAmp`, `stillness`) | ✅ transporte; respuesta a la *intención* sin medir (R12) | R13, adr-0006 |
 | Escudo de NaN | `safeFloat()` retiene el último valor sano por cliente | `backend/server.js:73-79` | ✅ **no romper** | — |
 | Canal de entrada | Escucha `/unreal/end_session` en `localPort: 0` (efímero) | `backend/server.js:89-95, 120-128` | ⚠️ inalcanzable | H9, R10 |
 | Guarda de ruta estática | Valida la ruta del servidor HTTP | `backend/server.js:28` | ✅ | — |

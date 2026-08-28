@@ -398,6 +398,14 @@ const SMOOTHING_SECONDS       = 5.75;      // ventana de la media móvil
 const MIN_CALIBRATION_SAMPLES = 200;       // el tiempo no basta: sin muestras la desviación no es fiable
 const MAX_TICK_DELTA_MS       = 250;       // un salto mayor es una pausa del navegador, no tiempo medido
 
+// [R13] Capa rápida de QUIETUD FÍSICA. Señal distinta del índice de calma, con
+// requisitos opuestos (ADR-0006): mide relajación muscular, no estado cortical.
+// El índice de calma RECHAZA el artefacto muscular; la quietud responde GRACIAS
+// a él. No fundirlas nunca en un solo número.
+const STILLNESS_ELECTRODES   = [1, 2];  // AF7 y AF8 (TP9=0, AF7=1, AF8=2, TP10=3)
+const STILLNESS_TAU_MS       = 120;     // constante de tiempo del alisado, en ms
+const STILLNESS_Z_CLAMP      = 2.5;     // recorte del z-score antes de normalizar
+
 // ── State ─────────────────────────────────────────────────────────────────────
 let appState   = 'DISCONNECTED';
 let museClient = null;
@@ -418,6 +426,13 @@ let calibrationProgress  = 0;
 let lastNCampsScores = [];   // {t, v}: se poda por tiempo, no por longitud
 let calibActiveMs    = 0;
 let lastTickAt       = null;
+// [R13] Capa rápida, independiente del pipeline de calma
+let frontalAmp       = null;
+let frontalAmpAt     = null;
+let stillnessSamples = [];
+let stillnessMean    = null;
+let stillnessStd     = null;
+let stillness        = 0.5;
 let smoothedCalmScore = 0;
 let calmFinal = 0;
 let calibTriggerFired = false;
@@ -527,6 +542,7 @@ function broadcastFullTelemetry(calmScore) {
         theta: rawTheta, delta: rawDelta,
         calm: calmScore, bpm: currentBpm,
         calibProgress:   calibrationProgress,
+        stillness:       stillness,
         calm_final:      calmFinal,
         calib_completed: outCalibCompleted,
         headset_id: headsetName
@@ -637,6 +653,8 @@ async function connectMuse() {
         lastNCampsScores  = [];
         calibActiveMs     = 0;
         lastTickAt        = null;
+        frontalAmp = null; frontalAmpAt = null;
+        stillnessSamples = []; stillnessMean = null; stillnessStd = null; stillness = 0.5;
         smoothedCalmScore = 0;
         calmFinal         = 0;
         calibTriggerFired = false;
@@ -682,6 +700,17 @@ async function connectMuse() {
             lastTickAt = now;
             const currentRatio = rawAlpha / (rawBeta + 0.4 * rawGamma + 0.001);
 
+            // [R13] Quietud física. Ruta PROPIA, sin la media móvil de SMOOTHING_SECONDS.
+            // Se invierte: más amplitud = más tensión = menos quietud. Sin baseline,
+            // 0.5 neutro en vez de un número inventado.
+            if (stillnessMean !== null && frontalAmp !== null) {
+                const zs = Math.min(Math.max((frontalAmp - stillnessMean) / stillnessStd,
+                                             -STILLNESS_Z_CLAMP), STILLNESS_Z_CLAMP);
+                stillness = 1 - (zs + STILLNESS_Z_CLAMP) / (2 * STILLNESS_Z_CLAMP);
+            } else {
+                stillness = 0.5;
+            }
+
             if (appState === 'WARMUP') {
                 const elapsed = Date.now() - warmupStartTime;
                 if (elapsed >= 2000) {
@@ -701,6 +730,7 @@ async function connectMuse() {
                     return;
                 }
                 calibrationData.push(currentRatio);
+                if (frontalAmp !== null) stillnessSamples.push(frontalAmp);
                 calibActiveMs += dt;
                 // Las DOS condiciones: tiempo activo para que la persona se asiente,
                 // y muestras para que la desviación signifique algo.
@@ -716,6 +746,13 @@ async function connectMuse() {
                     baselinePromedio = calibrationData.reduce((a, b) => a + b, 0) / calibrationData.length;
                     const variance   = calibrationData.reduce((a, b) => a + Math.pow(b - baselinePromedio, 2), 0) / calibrationData.length;
                     baselineStdDev   = Math.max(Math.sqrt(variance), 0.0001);
+                    // [R13] Baseline propio de la capa rápida
+                    if (stillnessSamples.length > 10) {
+                        const sm = stillnessSamples.reduce((a,b) => a+b, 0) / stillnessSamples.length;
+                        const sv = stillnessSamples.reduce((a,b) => a + Math.pow(b - sm, 2), 0) / stillnessSamples.length;
+                        stillnessMean = sm;
+                        stillnessStd  = Math.max(Math.sqrt(sv), 0.0001);
+                    }
                     devLog('Baseline: ' + baselinePromedio.toFixed(3) + ' ± ' + baselineStdDev.toFixed(3));
                     setAppState('RUNNING');
                     showView('view-dash');
@@ -755,6 +792,17 @@ async function connectMuse() {
             if (!samples || samples.length === 0) return;
             const avgPower = samples.reduce((acc, v) => acc + Math.abs(v), 0) / samples.length;
             if (avgPower >= 1.0) sensorActive = 1;
+            // [R13] Sólo AF7/AF8 alimentan la quietud. Alisado exponencial por TIEMPO,
+            // no por paquete: la constante vale igual sea cual sea la cadencia.
+            if (STILLNESS_ELECTRODES.includes(reading.electrode)) {
+                const nowF = Date.now();
+                if (frontalAmp === null) { frontalAmp = avgPower; }
+                else {
+                    const dtF = Math.min(nowF - frontalAmpAt, MAX_TICK_DELTA_MS);
+                    frontalAmp += (avgPower - frontalAmp) * (1 - Math.exp(-dtF / STILLNESS_TAU_MS));
+                }
+                frontalAmpAt = nowF;
+            }
             rawAlpha = smooth(rawAlpha, (avgPower * 0.10) % 1.0, dynamicAlphaEma);
             rawBeta  = smooth(rawBeta,  (avgPower * 0.20) % 1.0, 0.05);
             rawTheta = smooth(rawTheta, (avgPower * 0.15) % 1.0, 0.05);

@@ -73,9 +73,14 @@ panel. No hay ningún otro.
 | `/muse/calm` | `f` | Índice de calma, `0.0`–`1.0` |
 | `/muse/heart_rate` | `f` | Ritmo cardíaco en bpm |
 | `/muse/sensor_active` | `i` | Sensor activo, `0` / `1` |
+| `/muse/stillness` | `f` | Quietud física, `0.0`–`1.0` — relajación muscular, reacciona en ~47 ms |
 
-En Unreal o TouchDesigner: un `OSC Message` por dirección, y `Get OSC Message Float At Index 0` para las dos
-primeras, `Get OSC Message Int At Index 0` para la tercera.
+En Unreal o TouchDesigner: un `OSC Message` por dirección, y `Get OSC Message Float At Index 0` para todas
+menos `sensor_active`, que usa `Get OSC Message Int At Index 0`.
+
+**`calm` y `stillness` miden cosas distintas y no deben mezclarse** (`docs/adr/adr-0006-...`): la calma es el
+*estado*, lenta y suavizada; la quietud es la *agencia*, inmediata y de origen muscular. Para que algo
+responda al usuario, usa `stillness`.
 
 > ⚠️ **El transporte es correcto; el contenido todavía no.** El índice de calma se calcula sobre pseudo-bandas
 > que no son un análisis espectral, y el ritmo cardíaco es un número derivado del EEG, no una medición

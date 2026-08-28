@@ -48,6 +48,7 @@ Aislamiento por cliente: cada WebSocket abre **su propio `UDPPort`** con su IP/p
 | `/muse/calm` | `f` | Índice de calma | `0.0`–`1.0` |
 | `/muse/heart_rate` | `f` | Ritmo cardíaco | bpm |
 | `/muse/sensor_active` | `i` | Sensor activo | `0` / `1` |
+| `/muse/stillness` | `f` | Quietud física (agencia) | `0.0`–`1.0` |
 
 Hasta la ronda `R16` viajaba además `/muse/data`, un arreglo de 18 floats leído por índice cuya longitud
 estaba congelada (`adr-0003`, ya reemplazada). Se retiró al confirmar el director que Unreal consume las

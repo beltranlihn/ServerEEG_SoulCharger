@@ -32,3 +32,4 @@ toca —persona o asistente— sólo ve el código y no el motivo. La ADR es lo 
 | [0003](adr-0003-arreglo-osc-congelado.md) | El arreglo OSC `/muse/data` tiene longitud congelada de 18 floats | **Reemplazada por 0005** |
 | [0004](adr-0004-direcciones-osc-dedicadas.md) | Los valores nuevos viajan por direcciones OSC dedicadas | Aceptada |
 | [0005](adr-0005-retirada-del-arreglo-osc.md) | Se retira `/muse/data`: el relay emite sólo tres direcciones | Aceptada |
+| [0006](adr-0006-dos-senales-agencia-y-estado.md) | Dos señales separadas: quietud física (agencia) e índice de calma (estado) | Aceptada |

@@ -7,6 +7,52 @@ hizo.
 
 ---
 
+## R13 · La capa rápida — 2026-08-28 — Quietud física, separada del índice de calma
+
+Encargo del director: *«¿te acuerdas de lo que habíamos hablado de armar una señal que fuera más real time?
+Dale adelante con eso.»*
+
+**Qué se hizo.** Se añade `/muse/stillness` (`f`, 0–1), una **cuarta** dirección OSC que mide **quietud
+física**: la amplitud media de los canales frontales AF7/AF8, alisada con constante de 120 ms, normalizada
+con z-score contra un baseline propio recogido en el mismo tramo de calibración, e **invertida** —más
+amplitud es más tensión, menos quietud—. Tiene **ruta propia** desde la suscripción de EEG hasta el envío: no
+pasa por la media móvil de 5,75 s del índice de calma, que mataría la sensación de control. Sin baseline
+emite `0.5` neutro en vez de un número inventado. **ADR-0006** registra por qué son dos señales y no una.
+
+El fundamento salió de la observación del propio director sobre una instalación anterior: *«el relajo hacía
+que las ondas bajaran, me imagino que por menos ruido»*. Si bajan **todas** las bandas a la vez no es un
+fenómeno cortical —el alfa habría subido—: es la caída del nivel general, dominado por músculo. Eso no es un
+error, es una señal legítima; sólo hay que llamarla por su nombre.
+
+**Medido.**
+
+- `npm run probe` pasa de **rojo (exit 1)** a **verde (exit 0)** con 14 comprobaciones. Verificado que sabe
+  fallar: contra el relay sin `/muse/stillness` caza «se emiten 3 direcciones» cuando espera 4.
+- La sonda exige además que **quietud y calma sean valores distintos**, no el mismo dato duplicado con otro
+  nombre — que es el error concreto que la ADR-0006 quiere impedir.
+- Paridad entre gemelos comprobada constante a constante: `soul-charger-admin.html` y `soul-charger-app.html`
+  llevan la misma implementación (H7).
+
+**Trampas encontradas.** Midiendo la respuesta en vivo, la calma salía completamente plana (`Δ = 0.0000`) y
+la quietud sí se movía. La conclusión fácil —«la quietud es más reactiva»— era **falsa**: el simulador tenía
+el mismo defecto que R15 acababa de corregir en el bucle principal. Su variable de tiempo avanzaba con
+`TICK_MS` nominal en vez de con el reloj, así que con la pestaña estrangulada a 1,5 Hz sus ondas iban **40
+veces más lentas** y parecían congeladas. La quietud se movía sólo por el ruido aleatorio, que no depende del
+tiempo. Corregido: el simulador avanza ahora con tiempo real medido.
+
+Es un buen recordatorio de la regla: **comparar dos señales no verifica ninguna si el banco de pruebas está
+sesgado**.
+
+**Sin verificar.** La comparación de reactividad entre quietud y calma **queda abierta**: la medición
+disponible estaba contaminada por ese sesgo, y no se ha repetido con una ventana sin estrangular. Y lo más
+importante: **no está medido que la quietud responda a la *intención***. Que se mueva con la tensión muscular
+es seguro; que una persona pueda dirigirla a voluntad de forma fiable es justo la pregunta que responde
+**R12**, el experimento del círculo, que sigue pendiente de hardware.
+
+**Pendiente menor.** Mostrarla en la interfaz con su nombre, y en el CSV cuando exista (R5).
+
+---
+
 ## R16 · Retirada del arreglo OSC — 2026-08-28 — El relay emite sólo tres direcciones
 
 Probando en TouchDesigner, el director preguntó qué eran `data14` y `data17`. Al explicárselo —el Calm Score

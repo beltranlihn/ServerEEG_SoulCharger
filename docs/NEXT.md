@@ -13,9 +13,11 @@ Ordenada de **rápido a complejo**. Se tacha lo cerrado; se poda lo que deje de 
 ## EMPEZAR POR AQUÍ
 
 **Estado a 2026-08-28.** Cerradas **R0** (orden documental), **R1** (red de sondas), **R4** (contrato OSC
-nuevo), **R15** (cadencia a 60 Hz y ventanas por tiempo) y **R16** (retirada del arreglo de 18 floats). El
-relay emite hoy **exactamente tres direcciones OSC** a 60 Hz, verificadas por `npm run probe` y probadas
-contra TouchDesigner. Sigue **sin probarse contra Unreal** desde este repositorio.
+nuevo), **R13** (capa rápida de quietud), **R15** (cadencia a 60 Hz y ventanas por tiempo) y **R16** (retirada del
+arreglo de 18 floats). El
+relay emite hoy **cuatro direcciones OSC** a 60 Hz —calma, pulso, sensor y **quietud física** (R13)—
+verificadas por `npm run probe` y probadas contra TouchDesigner. Sigue **sin probarse contra Unreal** desde
+este repositorio.
 
 El contenido de esas tres cifras **todavía no es válido**: la calma sale de pseudo-bandas (H1) y el pulso es
 inventado (H2). El transporte está resuelto; la medición no.
@@ -85,6 +87,24 @@ Encargo del director: «deberíamos estar recibiendo una data suave en 60».
 - [x] Keep-alives a la misma cadencia: ya no hay salto de 6× al desconectar.
 - [x] Umbral de guardado de sesión en segundos, no en muestras.
 - [x] `/code-review`: cinco hallazgos, tres arreglados aquí, uno abierto como R14, uno era la documentación.
+
+### R13 · La capa rápida: quietud física — ✅ CERRADA (2026-08-28)
+
+Encargo del director: «armar una señal que fuera más real time». **ADR-0006.**
+
+- [x] `/muse/stillness` (`f`, 0–1): amplitud de AF7/AF8, alisado exponencial de 120 ms **por tiempo**,
+      z-score invertido contra baseline propio recogido en el mismo tramo de calibración.
+- [x] **Ruta propia**: no pasa por la media móvil de 5,75 s, que mataría la sensación de control. Llega con
+      la cadencia de los paquetes de EEG, ~47 ms.
+- [x] Sin baseline emite `0.5` neutro, no un número inventado.
+- [x] Aplicado en los **dos** ficheros del frontend (H7), y simulación de amplitud frontal para que la señal
+      viva también en modo Simulate.
+- [x] `probe-osc` exige cuatro direcciones y que **quietud y calma sean valores distintos**. Verificado que
+      sabe fallar: sin `/muse/stillness` sale en rojo.
+- [ ] **Sin verificar en vivo:** que la señal se mueva con amplitud frontal real. La pestaña automatizada
+      estaba estrangulada y no completó la calibración a velocidad normal. Falta una sesión con ventana
+      visible o con diadema.
+- [ ] Falta mostrarla **en la interfaz** con su nombre, y en el CSV cuando exista (R5).
 
 ### R16 · Retirada del arreglo OSC de 18 floats — ✅ CERRADA (2026-08-28)
 
@@ -167,23 +187,6 @@ condiciona D8, D9 y R11. Cualquier resultado es informativo, así que no se pued
 - [ ] Guardar las grabaciones etiquetadas: son el **corpus que R11 necesita** para `probe-calm`. Una sola
       construcción sirve para las dos cosas.
 
-### R13 · La capa rápida: quietud física — D9
-
-Lo que hace que la esfera se sienta viva. Barata: la señal **ya está calculada** en el código.
-
-- [ ] **Escribir la ADR de D9.** Dos señales, dos nombres, dos destinos: `physical_stillness` para la
-      experiencia, `calm_index` para el registro.
-- [ ] Sacar la capa rápida de `avgPower` (`soul-charger-admin.html:1620`), que es una estimación honesta de
-      amplitud general y lo único del pipeline de señal que mide algo real. Por electrodo, normalizada contra
-      el baseline del participante e invertida.
-- [ ] Usar **AF7 y AF8**, los frontales: para el índice de calma son los peores por contaminarse de músculo, y
-      para esto son los mejores por la misma razón.
-- [ ] **Sin el suavizado de 5,75 s.** `MA_WINDOW = 115` a 20 Hz mata cualquier sensación de control. La capa
-      rápida necesita su propia ruta; el transporte no es el cuello de botella.
-- [ ] Llamarla por su nombre en la interfaz y en el CSV: es **quietud física**, no estado de calma.
-- [ ] **No mezclarla nunca con el índice de calma.** Ver el aviso de 5.8: el índice rechaza el artefacto
-      muscular y la esfera responde gracias a él. Es la misma magnitud usada al revés.
-
 ### R14 · Coste de dibujo de la gráfica a 60 Hz — pendiente de medir
 
 Detectado al revisar el cambio de cadencia, **sin medir todavía**: no optimizar a ciegas.
@@ -237,8 +240,8 @@ Es la ronda que más protege la instalación en vivo.
       Recomendación: direcciones nuevas dedicadas, dejando `/muse/data` intacto.
 - [x] Añadir `/muse/calm` (`f`, 0–1), `/muse/heart_rate` (`f`) y `/muse/sensor_active` (`i`, 0/1).
       `osc.js` soporta el tipo entero.
-- [x] Añadir también **`/muse/stillness`** (`f`, 0–1), la capa rápida de R13. Son dos datos distintos con
-      latencias distintas y **no deben fundirse en uno** (D9). Sería la cuarta dirección; hoy son tres.
+- [x] Añadir también **`/muse/stillness`** (`f`, 0–1), la capa rápida de R13. Hecho en R13: son cuatro
+      direcciones, y quietud y calma **no se funden** (ADR-0006).
 - [x] Pasar los tres por `safeFloat()` o su equivalente entero: el escudo de NaN existe por un fallo real
       (`backend/server.js:73-79`).
 - [x] ~~No modificar la longitud del arreglo de 18 floats.~~ **Superado por R16:** el arreglo se retiró entero al confirmar el director que Unreal ya no lo lee (ADR-0005).
